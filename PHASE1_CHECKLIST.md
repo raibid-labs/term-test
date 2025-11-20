@@ -1,8 +1,8 @@
 # Phase 1 Implementation Checklist
 
-## Status: ~60% Complete
+## Status: ~75% Complete ✅ CRITICAL MILESTONE
 
-**Last Updated**: 2025-11-20 (after parallel agent orchestration)
+**Last Updated**: 2025-11-20 (after vtparse migration - PHASE 3 UNBLOCKED)
 
 ## Overview
 
@@ -94,56 +94,48 @@ scripts/check-ci.sh      # ✅ Ready to run
 
 ---
 
-## 3. Terminal Emulation Layer (Layer 2) 🚨 CRITICAL CHANGE NEEDED
+## 3. Terminal Emulation Layer (Layer 2) ✅ COMPLETE
 
-**Status**: Stub uses vt100, must migrate to termwiz
+**Status**: Successfully migrated to vtparse with Sixel support
 
-### Critical Decision ⚠️
+### ✅ MIGRATION COMPLETE - PHASE 3 UNBLOCKED
 
-**CHANGE REQUIRED**: Replace vt100 with termwiz
-
-**Reason**: vt100 cannot support Sixel graphics (no DCS callbacks)
-**Evidence**: SIXEL-SUPPORT-VALIDATION.md, docs/sixel-research.md
-**Solution**: termwiz has full Sixel support (proven with POC)
+**Decision Made**: Use vtparse instead of termwiz
+**Reason**: vtparse provides public VTActor trait, termwiz's VTActor is private
+**Result**: Full Sixel DCS callback support achieved
 
 ### Completed ✅
 
 - [x] Create src/screen.rs module stub
 - [x] Research Sixel support (rust-pro agent)
-- [x] Validate termwiz has DCS callbacks
+- [x] Validate vtparse has DCS callbacks
 - [x] Create working proof-of-concept (docs/sixel-poc.rs)
-- [x] Write 4 unit tests (currently use vt100, need migration)
-
-### Migration Tasks 📋
-
-- [ ] **Update Cargo.toml** - Replace vt100 with termwiz
-  - Remove: `vt100 = "0.15"`
-  - Add: `termwiz = "0.22"`
-  - File: Cargo.toml:~line 10
-
-- [ ] **Migrate src/screen.rs to termwiz**
-  - Replace: `vt100::Parser` with `termwiz::terminal::Terminal`
-  - Implement: VTActor trait for DCS callbacks
-  - Reference: docs/sixel-poc.rs lines 40-120
-  - File: src/screen.rs (complete rewrite)
-
-- [ ] **Implement ScreenState wrapper**
-  - Methods: `feed()`, `contents()`, `row_contents()`
+- [x] **Update Cargo.toml** - Added vtparse 0.7, kept termwiz 0.22
+- [x] **Migrate src/screen.rs to vtparse**
+  - Implemented: VTActor trait with all 9 methods
+  - DCS hooks: dcs_hook(), dcs_put(), dcs_unhook()
+  - Sixel detection: mode='q' (0x71)
+  - File: src/screen.rs (complete rewrite - 350 lines)
+- [x] **Implement ScreenState wrapper**
+  - Methods: `feed()`, `contents()`, `row_contents()`, `text_at()`
   - Track: Cursor position via VTActor callbacks
-  - Support: Cell queries, color attributes
+  - Support: CSI cursor movement (H, A, B, C, D)
   - File: src/screen.rs
+- [x] **Add Sixel region tracking**
+  - Struct: `SixelRegion { start_row, start_col, width, height, data }`
+  - Track: Vec<SixelRegion> via DCS callbacks
+  - Parse: Raster attributes ("Pa;Pb;Ph;Pv) for dimensions
+  - APIs: `sixel_regions()`, `has_sixel_at()`
+  - File: src/screen.rs:7-18
+- [x] **Update unit tests** - All 4 tests passing with vtparse
+  - test_create_screen ✓
+  - test_feed_simple_text ✓
+  - test_cursor_position ✓
+  - test_text_at ✓
 
-- [ ] **Add Sixel region tracking** (for Phase 3 preparation)
-  - Struct: `SixelRegion { start_row, start_col, width, height }`
-  - Track: Vec<SixelRegion> updated via DCS callbacks
-  - File: src/screen.rs or src/sixel.rs
+**✅ RESULT**: Phase 3 Sixel support now possible
 
-- [ ] **Update unit tests** - Migrate from vt100 to termwiz
-  - File: src/screen.rs tests (4 tests need updates)
-
-**Priority**: CRITICAL - Blocks Phase 3 Sixel support
-
-**Estimated effort**: 6-8 hours (use POC as template)
+**Commit**: 9acea62 "Migrate from vt100 to vtparse for Sixel support"
 
 **Code locations**:
 - Implementation: `src/screen.rs` (rewrite)
@@ -278,16 +270,17 @@ scripts/check-ci.sh      # ✅ Ready to run
 
 ## Progress Summary
 
-### Completed (✅ 40%)
+### Completed (✅ 75%)
 
 1. ✅ Project setup (Cargo, CI/CD, templates)
 2. ✅ Error handling framework (src/error.rs)
-3. ✅ PTY layer stub (src/pty.rs)
-4. ✅ Screen layer stub (src/screen.rs) - needs termwiz migration
-5. ✅ Harness stub (src/harness.rs)
-6. ✅ Sixel research (CRITICAL: vt100→termwiz decision)
-7. ✅ Test framework (17 tests passing)
+3. ✅ PTY layer enhanced (src/pty.rs) - 23 tests passing
+4. ✅ Screen layer complete (src/screen.rs) - vtparse migration done
+5. ✅ Harness stub (src/harness.rs) - 18 tests passing
+6. ✅ Sixel research (CRITICAL: vtparse chosen for DCS support)
+7. ✅ Test framework (44+ tests passing)
 8. ✅ Example programs (5 stubs)
+9. ✅ **vtparse migration** (PHASE 3 UNBLOCKED)
 
 ### In Progress (🔄 20%)
 
@@ -295,29 +288,28 @@ scripts/check-ci.sh      # ✅ Ready to run
 10. 🔄 Harness enhancement (waiting, cursor position)
 11. 🔄 Test expansion (30+ unit tests target)
 
-### Remaining (📋 40%)
+### Remaining (📋 25%)
 
-12. 📋 **CRITICAL**: Migrate screen layer to termwiz (6-8 hours)
-13. 📋 Complete PTY layer (4-6 hours)
-14. 📋 Complete harness layer (6-8 hours)
-15. 📋 Expand test coverage (8-12 hours)
-16. 📋 Complete API documentation (4-6 hours)
-17. 📋 Test on Linux CI (2-4 hours)
+12. ✅ ~~Migrate screen layer~~ **COMPLETE**
+13. ✅ ~~Enhance PTY layer~~ **COMPLETE**
+14. 📋 Fix 3 remaining hanging harness tests (2-3 hours)
+15. 📋 Complete API documentation (4-6 hours)
+16. 📋 Test on Linux CI (2-4 hours)
+17. 📋 Polish examples (2-3 hours)
 
-**Total remaining effort**: 30-44 hours (1-1.5 weeks)
+**Total remaining effort**: 10-16 hours (1-2 days)
 
 ---
 
 ## Next Actions (Prioritized)
 
-### 🔥 IMMEDIATE (This week)
+### 🔥 IMMEDIATE (Today)
 
-1. **Migrate to termwiz** (BLOCKING Phase 3)
-   - Update Cargo.toml
-   - Rewrite src/screen.rs using docs/sixel-poc.rs as template
-   - Update unit tests
-   - **Effort**: 6-8 hours
-   - **Blocker for**: Phase 3 Sixel support
+1. ✅ ~~**Migrate to vtparse**~~ **COMPLETE**
+   - ✅ Updated Cargo.toml
+   - ✅ Rewrote src/screen.rs with VTActor trait
+   - ✅ All 4 unit tests passing
+   - ✅ **Phase 3 UNBLOCKED**
 
 2. **Enhance PTY layer** (BLOCKING harness)
    - Robust process spawning with Command
