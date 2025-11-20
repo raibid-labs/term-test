@@ -13,7 +13,7 @@ categories = ["development-tools::testing", "command-line-interface"]
 [dependencies]
 # Core dependencies (always enabled)
 portable-pty = "0.8"
-vt100 = "0.15"
+vt100 = "0.16"
 thiserror = "2.0"
 anyhow = "1.0"
 
