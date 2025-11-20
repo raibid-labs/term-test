@@ -45,3 +45,48 @@ fn test_timeout_configuration() -> Result<()> {
     // Just verify it doesn't panic
     Ok(())
 }
+
+#[test]
+fn test_screen_contents_empty() -> Result<()> {
+    let harness = TuiTestHarness::new(80, 24)?;
+    let contents = harness.screen_contents();
+
+    // Empty screen should be all spaces or empty
+    assert!(contents.is_empty() || contents.trim().is_empty());
+    Ok(())
+}
+
+#[test]
+fn test_cursor_position_initial() -> Result<()> {
+    let harness = TuiTestHarness::new(80, 24)?;
+    let (row, col) = harness.cursor_position();
+
+    // Initial cursor should be at origin
+    assert_eq!(row, 0);
+    assert_eq!(col, 0);
+    Ok(())
+}
+
+#[test]
+fn test_resize() -> Result<()> {
+    let mut harness = TuiTestHarness::new(80, 24)?;
+
+    harness.resize(100, 30)?;
+
+    let state = harness.state();
+    assert_eq!(state.size(), (100, 30));
+    Ok(())
+}
+
+#[test]
+fn test_resize_to_invalid_dimensions() -> Result<()> {
+    let mut harness = TuiTestHarness::new(80, 24)?;
+
+    let result = harness.resize(0, 24);
+    assert!(result.is_err());
+
+    let result = harness.resize(80, 0);
+    assert!(result.is_err());
+
+    Ok(())
+}
