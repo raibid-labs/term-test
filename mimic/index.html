@@ -1,0 +1,84 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="mimic"><title>mimic - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-e56847b5.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="mimic" data-themes="" data-resource-suffix="" data-rustdoc-version="1.91.1 (ed61e7d7e 2025-11-07)" data-channel="1.91.1" data-search-js="search-e256b49e.js" data-stringdex-js="stringdex-c3e638e9.js" data-settings-js="settings-c38705f0.js" ><script src="../static.files/storage-e2aeef58.js"></script><script defer src="../crates.js"></script><script defer src="../static.files/main-6dc2a7f3.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc mod crate"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Crate mimic</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../mimic/index.html">mimic</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><ul class="block"><li><a id="all-types" href="all.html">All Items</a></li></ul><section id="rustdoc-toc"><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#mimic" title="mimic">mimic</a><ul><li><a href="#overview" title="Overview">Overview</a></li><li><a href="#quick-start" title="Quick Start">Quick Start</a></li><li><a href="#testing-sixel-graphics" title="Testing Sixel Graphics">Testing Sixel Graphics</a></li><li><a href="#feature-flags" title="Feature Flags">Feature Flags</a></li><li><a href="#architecture" title="Architecture">Architecture</a></li><li><a href="#primary-use-case-dgx-pixels" title="Primary Use Case: dgx-pixels">Primary Use Case: dgx-pixels</a></li></ul></li></ul><h3><a href="#reexports">Crate Items</a></h3><ul class="block"><li><a href="#reexports" title="Re-exports">Re-exports</a></li><li><a href="#modules" title="Modules">Modules</a></li><li><a href="#structs" title="Structs">Structs</a></li><li><a href="#enums" title="Enums">Enums</a></li><li><a href="#types" title="Type Aliases">Type Aliases</a></li></ul></section><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><h1>Crate <span>mimic</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/mimic/lib.rs.html#1-138">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><h2 id="mimic"><a class="doc-anchor" href="#mimic">§</a>mimic</h2>
+<p>A Rust library for integration testing of terminal user interface (TUI) applications.</p>
+<h3 id="overview"><a class="doc-anchor" href="#overview">§</a>Overview</h3>
+<p><code>mimic</code> provides a comprehensive testing framework for TUI applications built with
+libraries like Ratatui, with first-class support for:</p>
+<ul>
+<li><strong>PTY-based testing</strong>: Real terminal emulation with pseudo-terminal support</li>
+<li><strong>Sixel graphics testing</strong>: Position verification and bounds checking for Sixel images</li>
+<li><strong>Bevy ECS integration</strong>: Test Bevy-based TUI applications with <code>bevy_ratatui</code></li>
+<li><strong>Async runtime support</strong>: Full Tokio async/await support</li>
+<li><strong>Snapshot testing</strong>: Integration with <code>insta</code> for visual regression testing</li>
+<li><strong>Headless CI/CD</strong>: Works without X11/Wayland for GitHub Actions</li>
+</ul>
+<h3 id="quick-start"><a class="doc-anchor" href="#quick-start">§</a>Quick Start</h3>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>mimic::{TuiTestHarness, <span class="prelude-ty">Result</span>};
+<span class="kw">use </span>portable_pty::CommandBuilder;
+
+<span class="attr">#[test]
+</span><span class="kw">fn </span>test_my_tui_app() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+    <span class="comment">// Create a test harness with 80x24 terminal
+    </span><span class="kw">let </span><span class="kw-2">mut </span>harness = TuiTestHarness::new(<span class="number">80</span>, <span class="number">24</span>)<span class="question-mark">?</span>;
+
+    <span class="comment">// Spawn your TUI application
+    </span><span class="kw">let </span><span class="kw-2">mut </span>cmd = CommandBuilder::new(<span class="string">"./my-tui-app"</span>);
+    harness.spawn(cmd)<span class="question-mark">?</span>;
+
+    <span class="comment">// Wait for initial render
+    </span>harness.wait_for(|state| {
+        state.contents().contains(<span class="string">"Welcome"</span>)
+    })<span class="question-mark">?</span>;
+
+    <span class="comment">// Send keyboard input
+    </span>harness.send_text(<span class="string">"hello"</span>)<span class="question-mark">?</span>;
+
+    <span class="comment">// Capture screen state
+    </span><span class="kw">let </span>contents = harness.screen_contents();
+    <span class="macro">assert!</span>(contents.contains(<span class="string">"hello"</span>));
+
+    <span class="prelude-val">Ok</span>(())
+}</code></pre></div><h3 id="testing-sixel-graphics"><a class="doc-anchor" href="#testing-sixel-graphics">§</a>Testing Sixel Graphics</h3>
+<p>With the <code>sixel</code> feature enabled, you can verify Sixel graphics positioning:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>mimic::TuiTestHarness;
+
+<span class="kw">let </span><span class="kw-2">mut </span>harness = TuiTestHarness::new(<span class="number">80</span>, <span class="number">24</span>)<span class="question-mark">?</span>;
+<span class="comment">// ... spawn your app and trigger Sixel rendering ...
+
+// Verify all Sixel graphics are within the preview area
+</span><span class="kw">let </span>preview_area = (<span class="number">5</span>, <span class="number">5</span>, <span class="number">30</span>, <span class="number">15</span>); <span class="comment">// row, col, width, height
+</span><span class="kw">let </span>sixel_regions = harness.state().sixel_regions();
+<span class="kw">for </span>region <span class="kw">in </span>sixel_regions {
+    <span class="macro">assert!</span>(region.start_row &gt;= preview_area.<span class="number">0</span>);
+    <span class="macro">assert!</span>(region.start_col &gt;= preview_area.<span class="number">1</span>);
+}</code></pre></div><h3 id="feature-flags"><a class="doc-anchor" href="#feature-flags">§</a>Feature Flags</h3>
+<ul>
+<li><code>async-tokio</code>: Enable Tokio async runtime support</li>
+<li><code>bevy</code>: Enable Bevy ECS integration</li>
+<li><code>bevy-ratatui</code>: Enable bevy_ratatui plugin support</li>
+<li><code>ratatui-helpers</code>: Enable Ratatui-specific test helpers</li>
+<li><code>sixel</code>: Enable Sixel graphics position tracking and testing</li>
+<li><code>snapshot-insta</code>: Enable snapshot testing with <code>insta</code></li>
+<li><code>mvp</code>: Enable all MVP features (recommended for dgx-pixels)</li>
+</ul>
+<h3 id="architecture"><a class="doc-anchor" href="#architecture">§</a>Architecture</h3>
+<p>The library is organized into several layers:</p>
+<ol>
+<li><strong>PTY Management</strong> (<code>pty</code>): Pseudo-terminal creation and lifecycle</li>
+<li><strong>Terminal Emulation</strong> (<code>screen</code>): VT100 parsing and screen state</li>
+<li><strong>Test Harness</strong> (<code>harness</code>): High-level testing API</li>
+<li><strong>Sixel Support</strong> (<code>sixel</code>): Graphics protocol testing (MVP requirement)</li>
+<li><strong>Bevy Integration</strong> (<code>bevy</code>): ECS testing support (MVP requirement)</li>
+</ol>
+<h3 id="primary-use-case-dgx-pixels"><a class="doc-anchor" href="#primary-use-case-dgx-pixels">§</a>Primary Use Case: dgx-pixels</h3>
+<p>This library was built to support comprehensive integration testing for the
+<a href="https://github.com/raibid-labs/dgx-pixels">dgx-pixels</a> project, with focus on:</p>
+<ul>
+<li>Sixel graphics positioning within designated preview areas</li>
+<li>Sixel clearing on screen transitions</li>
+<li>Bevy ECS entity and component testing</li>
+<li>Text input and cursor position verification</li>
+<li>Async Tokio runtime compatibility</li>
+</ul>
+</div></details><h2 id="reexports" class="section-header">Re-exports<a href="#reexports" class="anchor">§</a></h2><dl class="item-table reexports"><dt id="reexport.KeyCode"><code>pub use events::<a class="enum" href="events/enum.KeyCode.html" title="enum mimic::events::KeyCode">KeyCode</a>;</code></dt><dt id="reexport.KeyEvent"><code>pub use events::<a class="struct" href="events/struct.KeyEvent.html" title="struct mimic::events::KeyEvent">KeyEvent</a>;</code></dt><dt id="reexport.Modifiers"><code>pub use events::<a class="struct" href="events/struct.Modifiers.html" title="struct mimic::events::Modifiers">Modifiers</a>;</code></dt></dl><h2 id="modules" class="section-header">Modules<a href="#modules" class="anchor">§</a></h2><dl class="item-table"><dt><a class="mod" href="events/index.html" title="mod mimic::events">events</a></dt><dd>Keyboard event types and escape sequence encoding.</dd></dl><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.BevyTuiTestHarness.html" title="struct mimic::BevyTuiTestHarness">Bevy<wbr>TuiTest<wbr>Harness</a></dt><dd>Test harness for Bevy-based TUI applications.</dd><dt><a class="struct" href="struct.Cell.html" title="struct mimic::Cell">Cell</a></dt><dd>Represents a single terminal cell with character and attributes.</dd><dt><a class="struct" href="struct.CommandBuilder.html" title="struct mimic::CommandBuilder">Command<wbr>Builder</a></dt><dd><code>CommandBuilder</code> is used to prepare a command to be spawned into a pty.
+The interface is intentionally similar to that of <code>std::process::Command</code>.</dd><dt><a class="struct" href="struct.ScreenState.html" title="struct mimic::ScreenState">Screen<wbr>State</a></dt><dd>Represents the current state of the terminal screen.</dd><dt><a class="struct" href="struct.SixelCapture.html" title="struct mimic::SixelCapture">Sixel<wbr>Capture</a></dt><dd>Captures all Sixel sequences from terminal output.</dd><dt><a class="struct" href="struct.SixelRegion.html" title="struct mimic::SixelRegion">Sixel<wbr>Region</a></dt><dd>Represents a Sixel graphics region in the terminal.</dd><dt><a class="struct" href="struct.SixelSequence.html" title="struct mimic::SixelSequence">Sixel<wbr>Sequence</a></dt><dd>Represents a captured Sixel sequence with position information.</dd><dt><a class="struct" href="struct.TestTerminal.html" title="struct mimic::TestTerminal">Test<wbr>Terminal</a></dt><dd>A test terminal backed by a pseudo-terminal (PTY).</dd><dt><a class="struct" href="struct.TuiTestHarness.html" title="struct mimic::TuiTestHarness">TuiTest<wbr>Harness</a></dt><dd>High-level test harness for TUI applications.</dd></dl><h2 id="enums" class="section-header">Enums<a href="#enums" class="anchor">§</a></h2><dl class="item-table"><dt><a class="enum" href="enum.TermTestError.html" title="enum mimic::TermTestError">Term<wbr>Test<wbr>Error</a></dt><dd>Errors that can occur during TUI testing.</dd></dl><h2 id="types" class="section-header">Type Aliases<a href="#types" class="anchor">§</a></h2><dl class="item-table"><dt><a class="type" href="type.Result.html" title="type mimic::Result">Result</a></dt><dd>Result type alias for mimic operations.</dd></dl></section></div></main></body></html>
