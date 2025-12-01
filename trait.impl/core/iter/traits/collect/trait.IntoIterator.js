@@ -1,9 +1,9 @@
 (function() {
-    var implementors = Object.fromEntries([["mimic",[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.91.1/core/iter/traits/collect/trait.IntoIterator.html\" title=\"trait core::iter::traits::collect::IntoIterator\">IntoIterator</a> for <a class=\"struct\" href=\"mimic/events/struct.Modifiers.html\" title=\"struct mimic::events::Modifiers\">Modifiers</a>"]]]]);
+    var implementors = Object.fromEntries([["ratatui_testlib",[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.91.1/core/iter/traits/collect/trait.IntoIterator.html\" title=\"trait core::iter::traits::collect::IntoIterator\">IntoIterator</a> for <a class=\"struct\" href=\"ratatui_testlib/events/struct.Modifiers.html\" title=\"struct ratatui_testlib::events::Modifiers\">Modifiers</a>"]]]]);
     if (window.register_implementors) {
         window.register_implementors(implementors);
     } else {
         window.pending_implementors = implementors;
     }
 })()
-//{"start":57,"fragment_lengths":[329]}
+//{"start":57,"fragment_lengths":[359]}
