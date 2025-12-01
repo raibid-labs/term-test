@@ -101,7 +101,7 @@ jobs:
         run: cargo doc --all-features --no-deps
 
       - name: Add index redirect
-        run: echo '<meta http-equiv="refresh" content="0; url=term_test/index.html">' > target/doc/index.html
+        run: echo '<meta http-equiv="refresh" content="0; url=mimic/index.html">' > target/doc/index.html
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3

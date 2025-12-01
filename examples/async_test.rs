@@ -43,7 +43,7 @@
 //! 5. Practical async patterns
 
 use portable_pty::CommandBuilder;
-use term_test::{Result, TuiTestHarness};
+use mimic::{Result, TuiTestHarness};
 use tokio::time::{timeout, Duration};
 
 #[tokio::main]
@@ -146,7 +146,7 @@ async fn example_2_async_wait() -> Result<()> {
         }
 
         if start.elapsed() > Duration::from_secs(5) {
-            return Err(term_test::TermTestError::Timeout { timeout_ms: 5000 });
+            return Err(mimic::TermTestError::Timeout { timeout_ms: 5000 });
         }
 
         tokio::time::sleep(Duration::from_millis(50)).await;
@@ -179,7 +179,7 @@ async fn example_3_concurrent_operations() -> Result<()> {
         tokio::time::sleep(Duration::from_millis(100)).await;
         harness.update_state()?;
         let result = harness.screen_contents().contains("Task 1");
-        Ok::<bool, term_test::TermTestError>(result)
+        Ok::<bool, mimic::TermTestError>(result)
     };
 
     let task2 = async {
@@ -190,7 +190,7 @@ async fn example_3_concurrent_operations() -> Result<()> {
         tokio::time::sleep(Duration::from_millis(100)).await;
         harness.update_state()?;
         let result = harness.screen_contents().contains("Task 2");
-        Ok::<bool, term_test::TermTestError>(result)
+        Ok::<bool, mimic::TermTestError>(result)
     };
 
     let task3 = async {
@@ -201,7 +201,7 @@ async fn example_3_concurrent_operations() -> Result<()> {
         tokio::time::sleep(Duration::from_millis(100)).await;
         harness.update_state()?;
         let result = harness.screen_contents().contains("Task 3");
-        Ok::<bool, term_test::TermTestError>(result)
+        Ok::<bool, mimic::TermTestError>(result)
     };
 
     // Run all tasks concurrently
@@ -239,7 +239,7 @@ async fn example_4_timeout_handling() -> Result<()> {
         tokio::time::sleep(Duration::from_millis(100)).await;
         harness.update_state()?;
         let contents = harness.screen_contents();
-        Ok::<String, term_test::TermTestError>(contents)
+        Ok::<String, mimic::TermTestError>(contents)
     })
     .await;
 
@@ -260,7 +260,7 @@ async fn example_4_timeout_handling() -> Result<()> {
         cmd.arg("1");
         harness.spawn(cmd)?;
         tokio::time::sleep(Duration::from_secs(2)).await;
-        Ok::<(), term_test::TermTestError>(())
+        Ok::<(), mimic::TermTestError>(())
     })
     .await;
 
@@ -317,7 +317,7 @@ async fn example_5_practical_scenario() -> Result<()> {
             }
             tokio::time::sleep(Duration::from_millis(10)).await;
         }
-        Ok::<(), term_test::TermTestError>(())
+        Ok::<(), mimic::TermTestError>(())
     })
     .await;
 
@@ -336,7 +336,7 @@ async fn example_5_practical_scenario() -> Result<()> {
             }
             tokio::time::sleep(Duration::from_millis(10)).await;
         }
-        Ok::<(), term_test::TermTestError>(())
+        Ok::<(), mimic::TermTestError>(())
     })
     .await;
 
@@ -396,7 +396,7 @@ async fn example_5_practical_scenario() -> Result<()> {
 //                 }
 //                 tokio::time::sleep(Duration::from_millis(50)).await;
 //             }
-//             Ok::<(), term_test::TermTestError>(())
+//             Ok::<(), mimic::TermTestError>(())
 //         })
 //         .await??;
 //
@@ -423,7 +423,7 @@ async fn example_5_practical_scenario() -> Result<()> {
 //                 harness.spawn(cmd)?;
 //                 tokio::time::sleep(Duration::from_millis(100)).await;
 //                 harness.update_state()?;
-//                 Ok::<_, term_test::TermTestError>(())
+//                 Ok::<_, mimic::TermTestError>(())
 //             })
 //         });
 //

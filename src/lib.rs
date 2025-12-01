@@ -17,7 +17,7 @@
 //! ## Quick Start
 //!
 //! ```rust,no_run
-//! use term_test::{TuiTestHarness, Result};
+//! use mimic::{TuiTestHarness, Result};
 //! use portable_pty::CommandBuilder;
 //!
 //! #[test]
@@ -52,9 +52,9 @@
 //! ```rust,no_run
 //! # #[cfg(feature = "sixel")]
 //! # {
-//! use term_test::TuiTestHarness;
+//! use mimic::TuiTestHarness;
 //!
-//! # fn test_sixel() -> term_test::Result<()> {
+//! # fn test_sixel() -> mimic::Result<()> {
 //! let mut harness = TuiTestHarness::new(80, 24)?;
 //! // ... spawn your app and trigger Sixel rendering ...
 //!

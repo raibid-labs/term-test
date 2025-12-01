@@ -11,7 +11,7 @@
 
 use portable_pty::CommandBuilder;
 use std::time::Duration;
-use term_test::{Result, TermTestError, TuiTestHarness};
+use mimic::{Result, TermTestError, TuiTestHarness};
 
 fn main() -> Result<()> {
     println!("=== Term-Test Wait Conditions Demo ===\n");

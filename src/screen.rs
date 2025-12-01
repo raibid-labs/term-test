@@ -12,7 +12,7 @@
 //! # Example
 //!
 //! ```rust
-//! use term_test::ScreenState;
+//! use mimic::ScreenState;
 //!
 //! let mut screen = ScreenState::new(80, 24);
 //!
@@ -83,7 +83,7 @@ impl Default for Cell {
 /// # Example
 ///
 /// ```rust
-/// # use term_test::ScreenState;
+/// # use mimic::ScreenState;
 /// let mut screen = ScreenState::new(80, 24);
 ///
 /// // After rendering a Sixel image...
@@ -531,7 +531,7 @@ impl VTActor for TerminalState {
 /// # Example
 ///
 /// ```rust
-/// use term_test::ScreenState;
+/// use mimic::ScreenState;
 ///
 /// let mut screen = ScreenState::new(80, 24);
 ///
@@ -565,7 +565,7 @@ impl ScreenState {
     /// # Example
     ///
     /// ```rust
-    /// use term_test::ScreenState;
+    /// use mimic::ScreenState;
     ///
     /// let screen = ScreenState::new(80, 24);
     /// assert_eq!(screen.size(), (80, 24));
@@ -602,7 +602,7 @@ impl ScreenState {
     /// # Example
     ///
     /// ```rust
-    /// use term_test::ScreenState;
+    /// use mimic::ScreenState;
     ///
     /// let mut screen = ScreenState::new(80, 24);
     ///
@@ -628,7 +628,7 @@ impl ScreenState {
     /// # Example
     ///
     /// ```rust
-    /// use term_test::ScreenState;
+    /// use mimic::ScreenState;
     ///
     /// let mut screen = ScreenState::new(10, 3);
     /// screen.feed(b"Hello");
@@ -699,7 +699,7 @@ impl ScreenState {
     /// # Example
     ///
     /// ```rust
-    /// use term_test::ScreenState;
+    /// use mimic::ScreenState;
     ///
     /// let mut screen = ScreenState::new(80, 24);
     /// screen.feed(b"\x1b[31mRed\x1b[0m");
@@ -751,7 +751,7 @@ impl ScreenState {
     /// # Example
     ///
     /// ```rust
-    /// use term_test::ScreenState;
+    /// use mimic::ScreenState;
     ///
     /// let mut screen = ScreenState::new(80, 24);
     /// // ... render some Sixel graphics ...
@@ -784,7 +784,7 @@ impl ScreenState {
     /// # Example
     ///
     /// ```rust
-    /// use term_test::ScreenState;
+    /// use mimic::ScreenState;
     ///
     /// let mut screen = ScreenState::new(80, 24);
     /// // ... render Sixel at position (5, 10) ...
@@ -827,7 +827,7 @@ impl ScreenState {
     /// # Example
     ///
     /// ```rust
-    /// use term_test::ScreenState;
+    /// use mimic::ScreenState;
     ///
     /// let mut screen = ScreenState::new(80, 24);
     /// screen.feed(b"Welcome to the application");

@@ -42,10 +42,10 @@ impl TestTerminal {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use term_test::TestTerminal;
+    /// use mimic::TestTerminal;
     ///
     /// let terminal = TestTerminal::new(80, 24)?;
-    /// # Ok::<(), term_test::TermTestError>(())
+    /// # Ok::<(), mimic::TermTestError>(())
     /// ```
     pub fn new(width: u16, height: u16) -> Result<Self> {
         if width == 0 || height == 0 {
@@ -77,11 +77,11 @@ impl TestTerminal {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use term_test::TestTerminal;
+    /// use mimic::TestTerminal;
     ///
     /// let mut terminal = TestTerminal::new(80, 24)?
     ///     .with_buffer_size(16384);
-    /// # Ok::<(), term_test::TermTestError>(())
+    /// # Ok::<(), mimic::TermTestError>(())
     /// ```
     pub fn with_buffer_size(mut self, size: usize) -> Self {
         self.buffer_size = size;
@@ -103,14 +103,14 @@ impl TestTerminal {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use term_test::TestTerminal;
+    /// use mimic::TestTerminal;
     /// use portable_pty::CommandBuilder;
     ///
     /// let mut terminal = TestTerminal::new(80, 24)?;
     /// let mut cmd = CommandBuilder::new("ls");
     /// cmd.arg("-la");
     /// terminal.spawn(cmd)?;
-    /// # Ok::<(), term_test::TermTestError>(())
+    /// # Ok::<(), mimic::TermTestError>(())
     /// ```
     pub fn spawn(&mut self, cmd: CommandBuilder) -> Result<()> {
         self.spawn_with_timeout(cmd, DEFAULT_SPAWN_TIMEOUT)
@@ -136,7 +136,7 @@ impl TestTerminal {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use term_test::TestTerminal;
+    /// use mimic::TestTerminal;
     /// use portable_pty::CommandBuilder;
     /// use std::time::Duration;
     ///
@@ -145,7 +145,7 @@ impl TestTerminal {
     /// cmd.arg("-c").arg("echo $TEST_VAR");
     /// cmd.env("TEST_VAR", "hello");
     /// terminal.spawn_with_timeout(cmd, Duration::from_secs(3))?;
-    /// # Ok::<(), term_test::TermTestError>(())
+    /// # Ok::<(), mimic::TermTestError>(())
     /// ```
     pub fn spawn_with_timeout(&mut self, cmd: CommandBuilder, timeout: Duration) -> Result<()> {
         if self.child.is_some() {
@@ -194,7 +194,7 @@ impl TestTerminal {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use term_test::TestTerminal;
+    /// use mimic::TestTerminal;
     ///
     /// let mut terminal = TestTerminal::new(80, 24)?;
     /// let mut buf = [0u8; 1024];
@@ -203,7 +203,7 @@ impl TestTerminal {
     ///     Ok(n) => println!("Read {} bytes", n),
     ///     Err(e) => eprintln!("Read error: {}", e),
     /// }
-    /// # Ok::<(), term_test::TermTestError>(())
+    /// # Ok::<(), mimic::TermTestError>(())
     /// ```
     pub fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
         let mut reader = self.pty_pair.master.try_clone_reader()
@@ -247,14 +247,14 @@ impl TestTerminal {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use term_test::TestTerminal;
+    /// use mimic::TestTerminal;
     /// use std::time::Duration;
     ///
     /// let mut terminal = TestTerminal::new(80, 24)?;
     /// let mut buf = [0u8; 1024];
     /// let n = terminal.read_timeout(&mut buf, Duration::from_secs(1))?;
     /// println!("Read {} bytes", n);
-    /// # Ok::<(), term_test::TermTestError>(())
+    /// # Ok::<(), mimic::TermTestError>(())
     /// ```
     pub fn read_timeout(&mut self, buf: &mut [u8], timeout: Duration) -> Result<usize> {
         let start = Instant::now();
@@ -289,12 +289,12 @@ impl TestTerminal {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use term_test::TestTerminal;
+    /// use mimic::TestTerminal;
     ///
     /// let mut terminal = TestTerminal::new(80, 24)?;
     /// let output = terminal.read_all()?;
     /// println!("Output: {}", String::from_utf8_lossy(&output));
-    /// # Ok::<(), term_test::TermTestError>(())
+    /// # Ok::<(), mimic::TermTestError>(())
     /// ```
     pub fn read_all(&mut self) -> Result<Vec<u8>> {
         let mut result = Vec::new();
@@ -326,11 +326,11 @@ impl TestTerminal {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use term_test::TestTerminal;
+    /// use mimic::TestTerminal;
     ///
     /// let mut terminal = TestTerminal::new(80, 24)?;
     /// terminal.write(b"hello\n")?;
-    /// # Ok::<(), term_test::TermTestError>(())
+    /// # Ok::<(), mimic::TermTestError>(())
     /// ```
     pub fn write(&mut self, data: &[u8]) -> Result<usize> {
         let mut writer = self.pty_pair.master.take_writer()
@@ -417,14 +417,14 @@ impl TestTerminal {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use term_test::TestTerminal;
+    /// use mimic::TestTerminal;
     /// use portable_pty::CommandBuilder;
     ///
     /// let mut terminal = TestTerminal::new(80, 24)?;
     /// let cmd = CommandBuilder::new("sleep");
     /// terminal.spawn(cmd)?;
     /// assert!(terminal.is_running());
-    /// # Ok::<(), term_test::TermTestError>(())
+    /// # Ok::<(), mimic::TermTestError>(())
     /// ```
     pub fn is_running(&mut self) -> bool {
         if let Some(ref mut child) = self.child {
@@ -460,14 +460,14 @@ impl TestTerminal {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use term_test::TestTerminal;
+    /// use mimic::TestTerminal;
     /// use portable_pty::CommandBuilder;
     ///
     /// let mut terminal = TestTerminal::new(80, 24)?;
     /// let cmd = CommandBuilder::new("sleep");
     /// terminal.spawn(cmd)?;
     /// terminal.kill()?;
-    /// # Ok::<(), term_test::TermTestError>(())
+    /// # Ok::<(), mimic::TermTestError>(())
     /// ```
     pub fn kill(&mut self) -> Result<()> {
         if let Some(ref mut child) = self.child {
@@ -506,7 +506,7 @@ impl TestTerminal {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use term_test::TestTerminal;
+    /// use mimic::TestTerminal;
     /// use portable_pty::CommandBuilder;
     ///
     /// let mut terminal = TestTerminal::new(80, 24)?;
@@ -514,7 +514,7 @@ impl TestTerminal {
     /// cmd.arg("hello");
     /// terminal.spawn(cmd)?;
     /// let status = terminal.wait()?;
-    /// # Ok::<(), term_test::TermTestError>(())
+    /// # Ok::<(), mimic::TermTestError>(())
     /// ```
     pub fn wait(&mut self) -> Result<ExitStatus> {
         if let Some(mut child) = self.child.take() {
@@ -544,7 +544,7 @@ impl TestTerminal {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use term_test::TestTerminal;
+    /// use mimic::TestTerminal;
     /// use portable_pty::CommandBuilder;
     /// use std::time::Duration;
     ///
@@ -553,7 +553,7 @@ impl TestTerminal {
     /// cmd.arg("hello");
     /// terminal.spawn(cmd)?;
     /// let status = terminal.wait_timeout(Duration::from_secs(5))?;
-    /// # Ok::<(), term_test::TermTestError>(())
+    /// # Ok::<(), mimic::TermTestError>(())
     /// ```
     pub fn wait_timeout(&mut self, timeout: Duration) -> Result<ExitStatus> {
         if self.child.is_none() {
@@ -600,7 +600,7 @@ impl TestTerminal {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use term_test::TestTerminal;
+    /// use mimic::TestTerminal;
     /// use portable_pty::CommandBuilder;
     ///
     /// let mut terminal = TestTerminal::new(80, 24)?;
@@ -611,7 +611,7 @@ impl TestTerminal {
     /// if let Some(status) = terminal.get_exit_status() {
     ///     println!("Process exited with status: {:?}", status);
     /// }
-    /// # Ok::<(), term_test::TermTestError>(())
+    /// # Ok::<(), mimic::TermTestError>(())
     /// ```
     pub fn get_exit_status(&self) -> Option<ExitStatus> {
         self.exit_status.clone()

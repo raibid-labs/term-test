@@ -54,7 +54,7 @@ See [ROADMAP.md](./docs/ROADMAP.md) for detailed implementation plan and [DGX_PI
 ## Quick Example
 
 ```rust
-use term_test::TuiTestHarness;
+use mimic::TuiTestHarness;
 use std::process::Command;
 
 #[test]
@@ -85,7 +85,7 @@ fn test_navigation() -> Result<()> {
 ## Testing Sixel Graphics (MVP Use Case)
 
 ```rust
-use term_test::BevyTuiTestHarness;
+use mimic::BevyTuiTestHarness;
 
 #[tokio::test]
 async fn test_sixel_renders_in_preview_area() -> Result<()> {

@@ -2,7 +2,7 @@
 //!
 //! This example shows how to use the harness for testing TUI applications.
 
-use term_test::{Result, TuiTestHarness};
+use mimic::{Result, TuiTestHarness};
 use std::time::Duration;
 
 fn main() -> Result<()> {

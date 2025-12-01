@@ -32,9 +32,9 @@
 //! ```rust,no_run
 //! # #[cfg(feature = "bevy")]
 //! # {
-//! use term_test::BevyTuiTestHarness;
+//! use mimic::BevyTuiTestHarness;
 //!
-//! # fn test() -> term_test::Result<()> {
+//! # fn test() -> mimic::Result<()> {
 //! let mut test = BevyTuiTestHarness::new()?;
 //!
 //! // Run one Bevy frame
@@ -81,9 +81,9 @@ use crate::sixel::SixelCapture;
 /// ```rust,no_run
 /// # #[cfg(feature = "bevy")]
 /// # {
-/// use term_test::BevyTuiTestHarness;
+/// use mimic::BevyTuiTestHarness;
 ///
-/// # fn test() -> term_test::Result<()> {
+/// # fn test() -> mimic::Result<()> {
 /// let mut harness = BevyTuiTestHarness::new()?;
 ///
 /// // Run one frame
@@ -119,9 +119,9 @@ impl BevyTuiTestHarness {
     /// ```rust,no_run
     /// # #[cfg(feature = "bevy")]
     /// # {
-    /// use term_test::BevyTuiTestHarness;
+    /// use mimic::BevyTuiTestHarness;
     ///
-    /// # fn test() -> term_test::Result<()> {
+    /// # fn test() -> mimic::Result<()> {
     /// let mut harness = BevyTuiTestHarness::new()?;
     /// # Ok(())
     /// # }
@@ -167,9 +167,9 @@ impl BevyTuiTestHarness {
     /// ```rust,no_run
     /// # #[cfg(feature = "bevy")]
     /// # {
-    /// use term_test::BevyTuiTestHarness;
+    /// use mimic::BevyTuiTestHarness;
     ///
-    /// # fn test() -> term_test::Result<()> {
+    /// # fn test() -> mimic::Result<()> {
     /// let mut harness = BevyTuiTestHarness::new()?;
     /// harness.update()?; // Run one frame
     /// # Ok(())
@@ -243,9 +243,9 @@ impl BevyTuiTestHarness {
     /// ```rust,no_run
     /// # #[cfg(feature = "bevy")]
     /// # {
-    /// use term_test::BevyTuiTestHarness;
+    /// use mimic::BevyTuiTestHarness;
     ///
-    /// # fn test() -> term_test::Result<()> {
+    /// # fn test() -> mimic::Result<()> {
     /// let harness = BevyTuiTestHarness::new()?;
     /// let state = harness.state();
     /// println!("Cursor at: {:?}", state.cursor_position());
@@ -276,9 +276,9 @@ impl BevyTuiTestHarness {
     /// ```rust,no_run
     /// # #[cfg(feature = "bevy")]
     /// # {
-    /// use term_test::BevyTuiTestHarness;
+    /// use mimic::BevyTuiTestHarness;
     ///
-    /// # fn test() -> term_test::Result<()> {
+    /// # fn test() -> mimic::Result<()> {
     /// let mut harness = BevyTuiTestHarness::new()?;
     /// harness.update()?;
     ///

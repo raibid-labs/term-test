@@ -21,7 +21,7 @@
 
 use portable_pty::CommandBuilder;
 use std::time::Duration;
-use term_test::{KeyCode, Modifiers, Result, TuiTestHarness};
+use mimic::{KeyCode, Modifiers, Result, TuiTestHarness};
 
 fn main() -> Result<()> {
     println!("=== Keyboard Event Simulation Demo ===\n");

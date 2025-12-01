@@ -7,7 +7,7 @@
 //! # Examples
 //!
 //! ```rust
-//! use term_test::{Result, TermTestError};
+//! use mimic::{Result, TermTestError};
 //!
 //! fn may_fail() -> Result<()> {
 //!     Err(TermTestError::Timeout { timeout_ms: 5000 })
@@ -33,7 +33,7 @@ use thiserror::Error;
 /// # Examples
 ///
 /// ```rust
-/// use term_test::{Result, TuiTestHarness};
+/// use mimic::{Result, TuiTestHarness};
 ///
 /// fn create_harness() -> Result<TuiTestHarness> {
 ///     TuiTestHarness::new(80, 24)
@@ -86,10 +86,10 @@ pub enum TermTestError {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use term_test::{TuiTestHarness, TermTestError};
+    /// use mimic::{TuiTestHarness, TermTestError};
     /// use std::time::Duration;
     ///
-    /// # fn test() -> term_test::Result<()> {
+    /// # fn test() -> mimic::Result<()> {
     /// let mut harness = TuiTestHarness::new(80, 24)?
     ///     .with_timeout(Duration::from_secs(1));
     ///

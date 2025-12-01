@@ -16,10 +16,10 @@
 //! # Example
 //!
 //! ```rust,no_run
-//! use term_test::TuiTestHarness;
+//! use mimic::TuiTestHarness;
 //! use portable_pty::CommandBuilder;
 //!
-//! # fn test() -> term_test::Result<()> {
+//! # fn test() -> mimic::Result<()> {
 //! // Create a test harness
 //! let mut harness = TuiTestHarness::new(80, 24)?;
 //!
@@ -63,20 +63,20 @@ const DEFAULT_BUFFER_SIZE: usize = 4096;
 /// # Example
 ///
 /// ```rust,no_run
-/// use term_test::TuiTestHarness;
+/// use mimic::TuiTestHarness;
 /// use portable_pty::CommandBuilder;
 ///
 /// let mut harness = TuiTestHarness::new(80, 24)?;
 /// let mut cmd = CommandBuilder::new("my-app");
 /// harness.spawn(cmd)?;
 /// harness.wait_for(|state| state.contains("Ready"))?;
-/// # Ok::<(), term_test::TermTestError>(())
+/// # Ok::<(), mimic::TermTestError>(())
 /// ```
 ///
 /// # Builder Pattern
 ///
 /// ```rust,no_run
-/// use term_test::TuiTestHarness;
+/// use mimic::TuiTestHarness;
 /// use std::time::Duration;
 ///
 /// let mut harness = TuiTestHarness::builder()
@@ -84,7 +84,7 @@ const DEFAULT_BUFFER_SIZE: usize = 4096;
 ///     .with_timeout(Duration::from_secs(10))
 ///     .with_poll_interval(Duration::from_millis(50))
 ///     .build()?;
-/// # Ok::<(), term_test::TermTestError>(())
+/// # Ok::<(), mimic::TermTestError>(())
 /// ```
 pub struct TuiTestHarness {
     terminal: TestTerminal,
@@ -123,14 +123,14 @@ impl TuiTestHarness {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use term_test::TuiTestHarness;
+    /// use mimic::TuiTestHarness;
     /// use std::time::Duration;
     ///
     /// let mut harness = TuiTestHarness::builder()
     ///     .with_size(80, 24)
     ///     .with_timeout(Duration::from_secs(10))
     ///     .build()?;
-    /// # Ok::<(), term_test::TermTestError>(())
+    /// # Ok::<(), mimic::TermTestError>(())
     /// ```
     pub fn builder() -> TuiTestHarnessBuilder {
         TuiTestHarnessBuilder::default()
@@ -200,9 +200,9 @@ impl TuiTestHarness {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use term_test::{TuiTestHarness, KeyCode};
+    /// use mimic::{TuiTestHarness, KeyCode};
     ///
-    /// # fn test() -> term_test::Result<()> {
+    /// # fn test() -> mimic::Result<()> {
     /// let mut harness = TuiTestHarness::new(80, 24)?;
     /// // ... spawn application ...
     ///
@@ -237,9 +237,9 @@ impl TuiTestHarness {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use term_test::{TuiTestHarness, KeyCode, Modifiers};
+    /// use mimic::{TuiTestHarness, KeyCode, Modifiers};
     ///
-    /// # fn test() -> term_test::Result<()> {
+    /// # fn test() -> mimic::Result<()> {
     /// let mut harness = TuiTestHarness::new(80, 24)?;
     /// // ... spawn application ...
     ///
@@ -277,9 +277,9 @@ impl TuiTestHarness {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use term_test::TuiTestHarness;
+    /// use mimic::TuiTestHarness;
     ///
-    /// # fn test() -> term_test::Result<()> {
+    /// # fn test() -> mimic::Result<()> {
     /// let mut harness = TuiTestHarness::new(80, 24)?;
     /// // ... spawn application ...
     ///
@@ -359,12 +359,12 @@ impl TuiTestHarness {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use term_test::TuiTestHarness;
+    /// # use mimic::TuiTestHarness;
     /// # let mut harness = TuiTestHarness::new(80, 24)?;
     /// harness.wait_for(|state| {
     ///     state.contains("Ready")
     /// })?;
-    /// # Ok::<(), term_test::TermTestError>(())
+    /// # Ok::<(), mimic::TermTestError>(())
     /// ```
     pub fn wait_for<F>(&mut self, condition: F) -> Result<()>
     where
@@ -438,10 +438,10 @@ impl TuiTestHarness {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use term_test::TuiTestHarness;
+    /// # use mimic::TuiTestHarness;
     /// # let mut harness = TuiTestHarness::new(80, 24)?;
     /// harness.wait_for_text("Ready")?;
-    /// # Ok::<(), term_test::TermTestError>(())
+    /// # Ok::<(), mimic::TermTestError>(())
     /// ```
     pub fn wait_for_text(&mut self, text: &str) -> Result<()> {
         let text = text.to_string();
@@ -468,11 +468,11 @@ impl TuiTestHarness {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use term_test::TuiTestHarness;
+    /// # use mimic::TuiTestHarness;
     /// # use std::time::Duration;
     /// # let mut harness = TuiTestHarness::new(80, 24)?;
     /// harness.wait_for_text_timeout("Ready", Duration::from_secs(2))?;
-    /// # Ok::<(), term_test::TermTestError>(())
+    /// # Ok::<(), mimic::TermTestError>(())
     /// ```
     pub fn wait_for_text_timeout(&mut self, text: &str, timeout: Duration) -> Result<()> {
         let text = text.to_string();
@@ -525,10 +525,10 @@ impl TuiTestHarness {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use term_test::TuiTestHarness;
+    /// # use mimic::TuiTestHarness;
     /// # let mut harness = TuiTestHarness::new(80, 24)?;
     /// harness.wait_for_cursor((5, 10))?;
-    /// # Ok::<(), term_test::TermTestError>(())
+    /// # Ok::<(), mimic::TermTestError>(())
     /// ```
     pub fn wait_for_cursor(&mut self, pos: (u16, u16)) -> Result<()> {
         let description = format!("cursor at ({}, {})", pos.0, pos.1);
@@ -552,11 +552,11 @@ impl TuiTestHarness {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use term_test::TuiTestHarness;
+    /// # use mimic::TuiTestHarness;
     /// # use std::time::Duration;
     /// # let mut harness = TuiTestHarness::new(80, 24)?;
     /// harness.wait_for_cursor_timeout((5, 10), Duration::from_millis(500))?;
-    /// # Ok::<(), term_test::TermTestError>(())
+    /// # Ok::<(), mimic::TermTestError>(())
     /// ```
     pub fn wait_for_cursor_timeout(&mut self, pos: (u16, u16), timeout: Duration) -> Result<()> {
         let description = format!("cursor at ({}, {})", pos.0, pos.1);
@@ -609,11 +609,11 @@ impl TuiTestHarness {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use term_test::TuiTestHarness;
+    /// # use mimic::TuiTestHarness;
     /// # let harness = TuiTestHarness::new(80, 24)?;
     /// let (row, col) = harness.cursor_position();
     /// println!("Cursor at: row={}, col={}", row, col);
-    /// # Ok::<(), term_test::TermTestError>(())
+    /// # Ok::<(), mimic::TermTestError>(())
     /// ```
     pub fn cursor_position(&self) -> (u16, u16) {
         self.state.cursor_position()
@@ -638,9 +638,9 @@ impl TuiTestHarness {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use term_test::TuiTestHarness;
+    /// use mimic::TuiTestHarness;
     ///
-    /// # fn test() -> term_test::Result<()> {
+    /// # fn test() -> mimic::Result<()> {
     /// let harness = TuiTestHarness::new(80, 24)?;
     /// let state = harness.state();
     /// println!("Screen size: {:?}", state.size());
@@ -663,9 +663,9 @@ impl TuiTestHarness {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use term_test::TuiTestHarness;
+    /// use mimic::TuiTestHarness;
     ///
-    /// # fn test() -> term_test::Result<()> {
+    /// # fn test() -> mimic::Result<()> {
     /// let mut harness = TuiTestHarness::new(80, 24)?;
     /// harness.state_mut().feed(b"Test data");
     /// assert!(harness.screen_contents().contains("Test"));
@@ -693,9 +693,9 @@ impl TuiTestHarness {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use term_test::TuiTestHarness;
+    /// use mimic::TuiTestHarness;
     ///
-    /// # fn test() -> term_test::Result<()> {
+    /// # fn test() -> mimic::Result<()> {
     /// let mut harness = TuiTestHarness::new(80, 24)?;
     /// harness.resize(120, 40)?;
     /// assert_eq!(harness.state().size(), (120, 40));
@@ -717,10 +717,10 @@ impl TuiTestHarness {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use term_test::TuiTestHarness;
+    /// use mimic::TuiTestHarness;
     /// use portable_pty::CommandBuilder;
     ///
-    /// # fn test() -> term_test::Result<()> {
+    /// # fn test() -> mimic::Result<()> {
     /// let mut harness = TuiTestHarness::new(80, 24)?;
     /// let cmd = CommandBuilder::new("sleep");
     /// harness.spawn(cmd)?;
@@ -747,10 +747,10 @@ impl TuiTestHarness {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use term_test::TuiTestHarness;
+    /// use mimic::TuiTestHarness;
     /// use portable_pty::CommandBuilder;
     ///
-    /// # fn test() -> term_test::Result<()> {
+    /// # fn test() -> mimic::Result<()> {
     /// let mut harness = TuiTestHarness::new(80, 24)?;
     /// let mut cmd = CommandBuilder::new("echo");
     /// cmd.arg("test");
@@ -782,9 +782,9 @@ impl TuiTestHarness {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use term_test::TuiTestHarness;
+    /// use mimic::TuiTestHarness;
     ///
-    /// # fn test() -> term_test::Result<()> {
+    /// # fn test() -> mimic::Result<()> {
     /// let mut harness = TuiTestHarness::new(80, 24)?;
     /// // ... spawn app that renders Sixel graphics ...
     ///
@@ -814,9 +814,9 @@ impl TuiTestHarness {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use term_test::TuiTestHarness;
+    /// use mimic::TuiTestHarness;
     ///
-    /// # fn test() -> term_test::Result<()> {
+    /// # fn test() -> mimic::Result<()> {
     /// let harness = TuiTestHarness::new(80, 24)?;
     /// // ... render graphics ...
     ///
@@ -847,9 +847,9 @@ impl TuiTestHarness {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use term_test::TuiTestHarness;
+    /// use mimic::TuiTestHarness;
     ///
-    /// # fn test() -> term_test::Result<()> {
+    /// # fn test() -> mimic::Result<()> {
     /// let harness = TuiTestHarness::new(80, 24)?;
     /// // ... render Sixel at (5, 10) ...
     ///
@@ -886,9 +886,9 @@ impl TuiTestHarness {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use term_test::TuiTestHarness;
+    /// use mimic::TuiTestHarness;
     ///
-    /// # fn test() -> term_test::Result<()> {
+    /// # fn test() -> mimic::Result<()> {
     /// let harness = TuiTestHarness::new(80, 24)?;
     /// // ... render graphics ...
     ///
@@ -922,9 +922,9 @@ impl TuiTestHarness {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use term_test::TuiTestHarness;
+    /// use mimic::TuiTestHarness;
     ///
-    /// # fn test() -> term_test::Result<()> {
+    /// # fn test() -> mimic::Result<()> {
     /// let harness = TuiTestHarness::new(80, 24)?;
     /// // ... render graphics ...
     ///
@@ -961,14 +961,14 @@ impl TuiTestHarness {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use term_test::TuiTestHarness;
+    /// use mimic::TuiTestHarness;
     ///
-    /// # fn test() -> term_test::Result<()> {
+    /// # fn test() -> mimic::Result<()> {
     /// let mut harness = TuiTestHarness::new(80, 24)?;
     /// // ... render some graphics ...
     ///
     /// // Simulate screen transition (e.g., press a key to switch files)
-    /// harness.send_key(term_test::KeyCode::Down)?;
+    /// harness.send_key(mimic::KeyCode::Down)?;
     ///
     /// // Verify graphics were cleared
     /// if harness.verify_sixel_cleared()? {
@@ -1002,9 +1002,9 @@ impl TuiTestHarness {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use term_test::TuiTestHarness;
+    /// use mimic::TuiTestHarness;
     ///
-    /// # fn test() -> term_test::Result<()> {
+    /// # fn test() -> mimic::Result<()> {
     /// let harness = TuiTestHarness::new(80, 24)?;
     /// // ... render image preview ...
     ///
@@ -1057,9 +1057,9 @@ impl TuiTestHarness {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use term_test::TuiTestHarness;
+    /// use mimic::TuiTestHarness;
     ///
-    /// # fn test() -> term_test::Result<()> {
+    /// # fn test() -> mimic::Result<()> {
     /// let harness = TuiTestHarness::new(120, 40)?;
     /// // ... render image preview in large terminal ...
     ///
@@ -1095,7 +1095,7 @@ impl TuiTestHarness {
 /// # Example
 ///
 /// ```rust,no_run
-/// use term_test::TuiTestHarness;
+/// use mimic::TuiTestHarness;
 /// use std::time::Duration;
 ///
 /// let mut harness = TuiTestHarness::builder()
@@ -1104,7 +1104,7 @@ impl TuiTestHarness {
 ///     .with_poll_interval(Duration::from_millis(50))
 ///     .with_buffer_size(8192)
 ///     .build()?;
-/// # Ok::<(), term_test::TermTestError>(())
+/// # Ok::<(), mimic::TermTestError>(())
 /// ```
 #[derive(Debug, Clone)]
 pub struct TuiTestHarnessBuilder {

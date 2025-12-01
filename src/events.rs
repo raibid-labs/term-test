@@ -13,7 +13,7 @@
 //! # Example
 //!
 //! ```rust
-//! use term_test::events::{KeyCode, Modifiers, KeyEvent};
+//! use mimic::events::{KeyCode, Modifiers, KeyEvent};
 //!
 //! // Simple key
 //! let key = KeyEvent::new(KeyCode::Char('a'));
@@ -42,7 +42,7 @@ use bitflags::bitflags;
 /// # Example
 ///
 /// ```rust
-/// use term_test::events::KeyCode;
+/// use mimic::events::KeyCode;
 ///
 /// let letter = KeyCode::Char('a');
 /// let enter = KeyCode::Enter;
@@ -101,7 +101,7 @@ pub enum KeyCode {
     /// # Example
     ///
     /// ```rust
-    /// use term_test::events::KeyCode;
+    /// use mimic::events::KeyCode;
     ///
     /// let f1 = KeyCode::F(1);
     /// let f12 = KeyCode::F(12);
@@ -115,7 +115,7 @@ bitflags! {
     /// These are bitflags, so multiple modifiers can be combined:
     ///
     /// ```rust
-    /// use term_test::events::Modifiers;
+    /// use mimic::events::Modifiers;
     ///
     /// let ctrl_shift = Modifiers::CTRL | Modifiers::SHIFT;
     /// let ctrl_alt = Modifiers::CTRL | Modifiers::ALT;
@@ -141,7 +141,7 @@ bitflags! {
 /// # Example
 ///
 /// ```rust
-/// use term_test::events::{KeyCode, Modifiers, KeyEvent};
+/// use mimic::events::{KeyCode, Modifiers, KeyEvent};
 ///
 /// // Simple key press
 /// let key = KeyEvent::new(KeyCode::Char('a'));
@@ -170,7 +170,7 @@ impl KeyEvent {
     /// # Example
     ///
     /// ```rust
-    /// use term_test::events::{KeyCode, KeyEvent};
+    /// use mimic::events::{KeyCode, KeyEvent};
     ///
     /// let key = KeyEvent::new(KeyCode::Char('a'));
     /// ```
@@ -186,7 +186,7 @@ impl KeyEvent {
     /// # Example
     ///
     /// ```rust
-    /// use term_test::events::{KeyCode, Modifiers, KeyEvent};
+    /// use mimic::events::{KeyCode, Modifiers, KeyEvent};
     ///
     /// let ctrl_c = KeyEvent::with_modifiers(
     ///     KeyCode::Char('c'),
@@ -209,7 +209,7 @@ impl KeyEvent {
     /// # Example
     ///
     /// ```rust
-    /// use term_test::events::{KeyCode, Modifiers, KeyEvent};
+    /// use mimic::events::{KeyCode, Modifiers, KeyEvent};
     ///
     /// let key = KeyEvent::new(KeyCode::Char('a'));
     /// let bytes = key.to_bytes();

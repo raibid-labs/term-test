@@ -36,7 +36,7 @@
 //! 4. Using SixelCapture for advanced validation
 //! 5. Detecting when Sixel graphics change between states
 
-use term_test::{Result, ScreenState, SixelCapture};
+use mimic::{Result, ScreenState, SixelCapture};
 
 fn main() -> Result<()> {
     println!("=== Sixel Graphics Testing Example ===\n");
@@ -354,7 +354,7 @@ fn example_5_practical_scenario() -> Result<()> {
 /// - dgx-pixels workflow testing
 /// - Simplified validation API usage
 fn example_6_harness_validation_apis() -> Result<()> {
-    use term_test::TuiTestHarness;
+    use mimic::TuiTestHarness;
 
     println!("--- Example 6: TuiTestHarness Validation APIs ---");
     println!("Demonstrates the new harness-level Sixel validation methods\n");
@@ -425,7 +425,7 @@ fn example_6_harness_validation_apis() -> Result<()> {
 /// - Screen transition verification
 /// - Preview area validation
 fn example_7_dgx_pixels_workflow() -> Result<()> {
-    use term_test::TuiTestHarness;
+    use mimic::TuiTestHarness;
 
     println!("--- Example 7: dgx-pixels Workflow Simulation ---");
     println!("Simulates browsing through images in dgx-pixels\n");
@@ -443,7 +443,7 @@ fn example_7_dgx_pixels_workflow() -> Result<()> {
 
     // Step 2: Navigate to next file (simulate screen clear + new image)
     println!("\nStep 2: Navigate to next image");
-    use term_test::ScreenState;
+    use mimic::ScreenState;
     *harness.state_mut() = ScreenState::new(80, 24);
 
     // New image
@@ -483,7 +483,7 @@ fn example_7_dgx_pixels_workflow() -> Result<()> {
 /// - Debugging Sixel position issues
 /// - Validation failure scenarios
 fn example_8_error_handling() -> Result<()> {
-    use term_test::TuiTestHarness;
+    use mimic::TuiTestHarness;
 
     println!("--- Example 8: Error Handling and Debugging ---");
     println!("Demonstrates validation failures with helpful error messages\n");

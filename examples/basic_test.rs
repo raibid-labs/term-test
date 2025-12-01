@@ -26,7 +26,7 @@
 //! Each section shows the captured screen contents and cursor position.
 
 use portable_pty::CommandBuilder;
-use term_test::{Result, TuiTestHarness};
+use mimic::{Result, TuiTestHarness};
 use std::time::Duration;
 
 fn main() -> Result<()> {

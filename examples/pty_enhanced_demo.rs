@@ -5,7 +5,7 @@
 
 use portable_pty::CommandBuilder;
 use std::time::Duration;
-use term_test::TestTerminal;
+use mimic::TestTerminal;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("PTY Enhanced Features Demo");
