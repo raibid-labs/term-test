@@ -19,8 +19,9 @@
 //! - Special keys (Enter, Tab, Esc, Backspace)
 //! - Interactive input patterns
 
-use portable_pty::CommandBuilder;
 use std::time::Duration;
+
+use portable_pty::CommandBuilder;
 use ratatui_testlib::{KeyCode, Modifiers, Result, TuiTestHarness};
 
 fn main() -> Result<()> {

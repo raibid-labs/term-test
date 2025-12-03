@@ -3,17 +3,19 @@
 //! This module provides [`HeadlessBevyRunner`], an alternative to [`BevyTuiTestHarness`]
 //! that runs Bevy schedules entirely in-process without PTY overhead.
 
-use crate::error::{Result, TermTestError};
-use crate::screen::ScreenState;
+use bevy::{
+    app::App,
+    ecs::{component::Component, world::World},
+    prelude::{Entity, Update, With},
+    MinimalPlugins,
+};
 
 #[cfg(feature = "sixel")]
 use crate::sixel::SixelCapture;
-
-use bevy::app::App;
-use bevy::ecs::component::Component;
-use bevy::ecs::world::World;
-use bevy::prelude::{Entity, Update, With};
-use bevy::MinimalPlugins;
+use crate::{
+    error::{Result, TermTestError},
+    screen::ScreenState,
+};
 
 /// In-process headless Bevy runner for CI-friendly testing.
 ///
@@ -50,8 +52,8 @@ use bevy::MinimalPlugins;
 /// ```rust,no_run
 /// # #[cfg(feature = "bevy")]
 /// # {
-/// use ratatui_testlib::HeadlessBevyRunner;
 /// use bevy::prelude::*;
+/// use ratatui_testlib::HeadlessBevyRunner;
 ///
 /// #[derive(Component)]
 /// struct Counter(u32);
@@ -177,12 +179,7 @@ impl HeadlessBevyRunner {
 
         let screen = ScreenState::new(width, height);
 
-        Ok(Self {
-            app,
-            screen,
-            width,
-            height,
-        })
+        Ok(Self { app, screen, width, height })
     }
 
     /// Creates a headless runner with bevy_ratatui plugin pre-configured.
@@ -212,9 +209,8 @@ impl HeadlessBevyRunner {
     /// ```rust,no_run
     /// # #[cfg(feature = "bevy")]
     /// # {
+    /// use bevy::{app::ScheduleRunnerPlugin, prelude::*};
     /// use ratatui_testlib::HeadlessBevyRunner;
-    /// use bevy::prelude::*;
-    /// use bevy::app::ScheduleRunnerPlugin;
     ///
     /// # fn test() -> ratatui_testlib::Result<()> {
     /// let mut app = App::new();
@@ -229,12 +225,7 @@ impl HeadlessBevyRunner {
     /// ```
     pub fn with_app(app: App) -> Self {
         let screen = ScreenState::new(80, 24);
-        Self {
-            app,
-            screen,
-            width: 80,
-            height: 24,
-        }
+        Self { app, screen, width: 80, height: 24 }
     }
 
     /// Runs one Bevy frame update (ticks all schedules once).
@@ -316,10 +307,11 @@ impl HeadlessBevyRunner {
     /// ```rust,no_run
     /// # #[cfg(feature = "bevy")]
     /// # {
-    /// use ratatui_testlib::HeadlessBevyRunner;
     /// use bevy::prelude::*;
+    /// use ratatui_testlib::HeadlessBevyRunner;
     ///
-    /// fn my_system() { /* ... */ }
+    /// fn my_system() { // ...
+    /// }
     ///
     /// # fn test() -> ratatui_testlib::Result<()> {
     /// let mut runner = HeadlessBevyRunner::new()?;
@@ -345,8 +337,8 @@ impl HeadlessBevyRunner {
     /// ```rust,no_run
     /// # #[cfg(feature = "bevy")]
     /// # {
-    /// use ratatui_testlib::HeadlessBevyRunner;
     /// use bevy::prelude::*;
+    /// use ratatui_testlib::HeadlessBevyRunner;
     ///
     /// #[derive(Component)]
     /// struct Health(u32);
@@ -407,10 +399,7 @@ impl HeadlessBevyRunner {
     /// # Errors
     ///
     /// Returns an error if the count doesn't match.
-    pub fn assert_component_count<T: Component>(
-        &mut self,
-        expected_count: usize,
-    ) -> Result<()> {
+    pub fn assert_component_count<T: Component>(&mut self, expected_count: usize) -> Result<()> {
         let actual_count = self.query::<T>().len();
         if actual_count != expected_count {
             return Err(TermTestError::Bevy(format!(
@@ -533,8 +522,9 @@ impl crate::bevy::bench::BenchmarkableHarness for HeadlessBevyRunner {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use bevy::prelude::*;
+
+    use super::*;
 
     #[derive(Component)]
     struct TestCounter(u32);

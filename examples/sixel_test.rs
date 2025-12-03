@@ -91,12 +91,12 @@ fn example_1_detect_sixel_regions() -> Result<()> {
     // DCS starts Sixel: ESC P q
     // Raster attributes: " Pa ; Pb ; Ph ; Pv
     // Data follows, then: ESC \
-    screen.feed(b"\x1b[5;10H");  // Move cursor to (5, 10) [1-based]
-    screen.feed(b"\x1bPq");       // DCS - Start Sixel mode with 'q'
-    screen.feed(b"\"1;1;100;50");  // Raster attributes: 100x50 pixels
+    screen.feed(b"\x1b[5;10H"); // Move cursor to (5, 10) [1-based]
+    screen.feed(b"\x1bPq"); // DCS - Start Sixel mode with 'q'
+    screen.feed(b"\"1;1;100;50"); // Raster attributes: 100x50 pixels
     screen.feed(b"#0;2;100;100;100"); // Define color
     screen.feed(b"#0~"); // Some sixel data
-    screen.feed(b"\x1b\\");        // String terminator (ST)
+    screen.feed(b"\x1b\\"); // String terminator (ST)
 
     println!("Fed Sixel escape sequence to screen");
     println!("  Position: (5, 10) [1-based in escape sequence]");
@@ -119,8 +119,7 @@ fn example_1_detect_sixel_regions() -> Result<()> {
     if !regions.is_empty() {
         let region = &regions[0];
         let has_sixel = screen.has_sixel_at(region.start_row, region.start_col);
-        println!("\nhas_sixel_at({}, {}): {}",
-            region.start_row, region.start_col, has_sixel);
+        println!("\nhas_sixel_at({}, {}): {}", region.start_row, region.start_col, has_sixel);
     }
 
     println!();
@@ -147,7 +146,7 @@ fn example_2_validate_bounds() -> Result<()> {
     println!("  Size: {}x{}", preview_area.2, preview_area.3);
 
     // Simulate Sixel within preview area
-    screen.feed(b"\x1b[10;75H");  // Position within preview
+    screen.feed(b"\x1b[10;75H"); // Position within preview
     screen.feed(b"\x1bPq\"1;1;200;150#0~\x1b\\");
 
     println!("\nSimulated Sixel graphic within preview area");
@@ -192,7 +191,7 @@ fn example_3_sixel_capture() -> Result<()> {
     let mut screen = ScreenState::new(100, 30);
 
     // Create multiple Sixel regions
-    screen.feed(b"\x1b[5;5H\x1bPq\"1;1;80;60#0~\x1b\\");   // Region 1
+    screen.feed(b"\x1b[5;5H\x1bPq\"1;1;80;60#0~\x1b\\"); // Region 1
     screen.feed(b"\x1b[15;50H\x1bPq\"1;1;100;80#0~\x1b\\"); // Region 2
 
     println!("Created screen with 2 Sixel regions:");
@@ -209,10 +208,14 @@ fn example_3_sixel_capture() -> Result<()> {
     let right_panel = (0, 40, 60, 30);
 
     println!("\nQuerying by area:");
-    println!("  Left panel (0, 0, 30x30): {} sequences",
-        capture.sequences_in_area(left_panel).len());
-    println!("  Right panel (0, 40, 60x30): {} sequences",
-        capture.sequences_in_area(right_panel).len());
+    println!(
+        "  Left panel (0, 0, 30x30): {} sequences",
+        capture.sequences_in_area(left_panel).len()
+    );
+    println!(
+        "  Right panel (0, 40, 60x30): {} sequences",
+        capture.sequences_in_area(right_panel).len()
+    );
 
     // Inspect individual sequences
     for (i, seq) in capture.sequences().iter().enumerate() {
@@ -297,8 +300,8 @@ fn example_5_practical_scenario() -> Result<()> {
 
     // Test 1: Display image in preview area
     println!("\nTest 1: Display image in preview area");
-    screen.feed(b"\x1b[10;40H");  // Position in preview (row 10, col 40)
-    // Image: 400x150 pixels = 50x25 cells, should fit in preview (70 wide x 30 tall)
+    screen.feed(b"\x1b[10;40H"); // Position in preview (row 10, col 40)
+                                 // Image: 400x150 pixels = 50x25 cells, should fit in preview (70 wide x 30 tall)
     screen.feed(b"\x1bPq\"1;1;400;150#0~\x1b\\");
 
     let capture = SixelCapture::from_screen_state(&screen);
@@ -313,8 +316,7 @@ fn example_5_practical_scenario() -> Result<()> {
     if sidebar_sequences.is_empty() {
         println!("  ✓ No graphics in sidebar (correct)");
     } else {
-        println!("  ✗ WARNING: {} graphics in sidebar",
-            sidebar_sequences.len());
+        println!("  ✗ WARNING: {} graphics in sidebar", sidebar_sequences.len());
     }
 
     // Test 3: Count graphics in preview
@@ -324,8 +326,7 @@ fn example_5_practical_scenario() -> Result<()> {
     if preview_sequences.len() == 1 {
         println!("  ✓ Exactly one preview image (correct)");
     } else {
-        println!("  ✗ WARNING: Expected 1 image, found {}",
-            preview_sequences.len());
+        println!("  ✗ WARNING: Expected 1 image, found {}", preview_sequences.len());
     }
 
     // Test 4: Verify graphics properties
@@ -371,7 +372,9 @@ fn example_6_harness_validation_apis() -> Result<()> {
     // Feed Sixel in preview area
     println!("\nRendering Sixel in preview area (10, 50)...");
     harness.state_mut().feed(b"\x1b[10;50H");
-    harness.state_mut().feed(b"\x1bPq\"1;1;200;120#0;2;100;100;100#0~~@@\x1b\\");
+    harness
+        .state_mut()
+        .feed(b"\x1bPq\"1;1;200;120#0;2;100;100;100#0~~@@\x1b\\");
 
     // Use sixel_count()
     println!("  Sixel count: {}", harness.sixel_count());
@@ -435,7 +438,9 @@ fn example_7_dgx_pixels_workflow() -> Result<()> {
 
     // Step 1: Display first image
     println!("Step 1: Display first image");
-    harness.state_mut().feed(b"\x1b[10;50H\x1bPq\"1;1;180;100#0~\x1b\\");
+    harness
+        .state_mut()
+        .feed(b"\x1b[10;50H\x1bPq\"1;1;180;100#0~\x1b\\");
 
     assert_eq!(harness.sixel_count(), 1);
     assert!(harness.assert_preview_has_sixel().is_ok());
@@ -447,7 +452,9 @@ fn example_7_dgx_pixels_workflow() -> Result<()> {
     *harness.state_mut() = ScreenState::new(80, 24);
 
     // New image
-    harness.state_mut().feed(b"\x1b[10;50H\x1bPq\"1;1;220;140#0~\x1b\\");
+    harness
+        .state_mut()
+        .feed(b"\x1b[10;50H\x1bPq\"1;1;220;140#0~\x1b\\");
 
     assert_eq!(harness.sixel_count(), 1);
     assert!(harness.assert_preview_has_sixel().is_ok());
@@ -464,7 +471,9 @@ fn example_7_dgx_pixels_workflow() -> Result<()> {
     let mut harness_large = TuiTestHarness::new(120, 40)?;
     let large_preview = (10, 60, 55, 25);
 
-    harness_large.state_mut().feed(b"\x1b[20;80H\x1bPq\"1;1;400;300#0~\x1b\\");
+    harness_large
+        .state_mut()
+        .feed(b"\x1b[20;80H\x1bPq\"1;1;400;300#0~\x1b\\");
 
     match harness_large.assert_preview_has_sixel_in(large_preview) {
         Ok(()) => println!("  ✓ Large terminal preview validation works"),
@@ -503,7 +512,9 @@ fn example_8_error_handling() -> Result<()> {
 
     // Scenario 2: Sixel outside expected area
     println!("\nScenario 2: Sixel outside preview area");
-    harness.state_mut().feed(b"\x1b[2;5H\x1bPq\"1;1;100;80#0~\x1b\\");
+    harness
+        .state_mut()
+        .feed(b"\x1b[2;5H\x1bPq\"1;1;100;80#0~\x1b\\");
 
     match harness.assert_preview_has_sixel() {
         Ok(()) => println!("  Unexpected success"),
@@ -516,9 +527,10 @@ fn example_8_error_handling() -> Result<()> {
             if !regions.is_empty() {
                 println!("\n  Actual Sixel locations:");
                 for (i, region) in regions.iter().enumerate() {
-                    println!("    Sixel {}: row={}, col={}, size={}x{}",
-                        i, region.start_row, region.start_col,
-                        region.width, region.height);
+                    println!(
+                        "    Sixel {}: row={}, col={}, size={}x{}",
+                        i, region.start_row, region.start_col, region.width, region.height
+                    );
                 }
             }
             println!("  ✓ Error provides position information for debugging");
@@ -527,8 +539,12 @@ fn example_8_error_handling() -> Result<()> {
 
     // Scenario 3: Multiple Sixels, some out of bounds
     println!("\nScenario 3: Multiple Sixels with boundary violations");
-    harness.state_mut().feed(b"\x1b[10;50H\x1bPq\"1;1;150;100#0~\x1b\\");  // In preview
-    harness.state_mut().feed(b"\x1b[20;10H\x1bPq\"1;1;80;60#0~\x1b\\");    // Outside preview
+    harness
+        .state_mut()
+        .feed(b"\x1b[10;50H\x1bPq\"1;1;150;100#0~\x1b\\"); // In preview
+    harness
+        .state_mut()
+        .feed(b"\x1b[20;10H\x1bPq\"1;1;80;60#0~\x1b\\"); // Outside preview
 
     let preview_area = (5, 40, 35, 15);
     match harness.assert_sixel_within_bounds(preview_area) {
@@ -537,10 +553,14 @@ fn example_8_error_handling() -> Result<()> {
             println!("  Expected error occurred:");
             println!("  {}", e);
             println!("\n  Total Sixels: {}", harness.sixel_count());
-            println!("  In preview: {}",
-                harness.sixel_regions().iter()
+            println!(
+                "  In preview: {}",
+                harness
+                    .sixel_regions()
+                    .iter()
                     .filter(|r| r.start_row >= 5 && r.start_col >= 40)
-                    .count());
+                    .count()
+            );
             println!("  ✓ Can identify which Sixels violate bounds");
         }
     }

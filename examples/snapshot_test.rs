@@ -36,9 +36,10 @@
 //! 4. Testing multi-step UI flows
 //! 5. Best practices and common patterns
 
+use std::time::Duration;
+
 use portable_pty::CommandBuilder;
 use ratatui_testlib::{Result, TuiTestHarness};
-use std::time::Duration;
 
 fn main() -> Result<()> {
     println!("=== Snapshot Testing Example with insta ===\n");
@@ -260,14 +261,16 @@ fn example_4_snapshot_settings() -> Result<()> {
 
     println!("\nProblem: Timestamps change every run, breaking snapshots");
     println!("\nSolution: Use insta settings with redactions:");
-    println!("
+    println!(
+        "
     let mut settings = insta::Settings::clone_current();
     settings.add_filter(r\"\\d{{4}}-\\d{{2}}-\\d{{2}}\", \"[DATE]\");
     settings.add_filter(r\"\\d{{2}}:\\d{{2}}:\\d{{2}}\", \"[TIME]\");
     let _guard = settings.bind_to_scope();
 
     insta::assert_snapshot!(contents);
-    ");
+    "
+    );
 
     println!("Result: Snapshot contains [DATE] [TIME] instead of actual values");
 

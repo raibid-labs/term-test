@@ -9,8 +9,9 @@
 //!
 //! Run with: cargo run --example wait_demo
 
-use portable_pty::CommandBuilder;
 use std::time::Duration;
+
+use portable_pty::CommandBuilder;
 use ratatui_testlib::{Result, TermTestError, TuiTestHarness};
 
 fn main() -> Result<()> {
@@ -95,8 +96,7 @@ fn demo_cursor_wait() -> Result<()> {
     println!("3. Cursor Position Wait");
     println!("   Feeding cursor movement sequences and waiting...");
 
-    let mut harness = TuiTestHarness::new(80, 24)?
-        .with_timeout(Duration::from_secs(1));
+    let mut harness = TuiTestHarness::new(80, 24)?.with_timeout(Duration::from_secs(1));
 
     // Feed escape sequence to move cursor to row 10, col 20 (1-based)
     harness.state_mut().feed(b"\x1b[10;20H");
@@ -119,8 +119,7 @@ fn demo_custom_predicates() -> Result<()> {
     println!("4. Custom Predicates");
     println!("   Using custom predicates for complex conditions...");
 
-    let mut harness = TuiTestHarness::new(80, 24)?
-        .with_timeout(Duration::from_secs(2));
+    let mut harness = TuiTestHarness::new(80, 24)?.with_timeout(Duration::from_secs(2));
 
     let mut cmd = CommandBuilder::new("echo");
     cmd.arg("Progress: 75% [Status: OK]");
@@ -134,13 +133,12 @@ fn demo_custom_predicates() -> Result<()> {
     println!("   ✓ Found progress indicator");
 
     // Wait for status indicator
-    harness.wait_for(|state| {
-        state.contents().contains("Status: OK")
-    })?;
+    harness.wait_for(|state| state.contents().contains("Status: OK"))?;
     println!("   ✓ Found status indicator");
 
     // Count digits in output
-    let digit_count = harness.screen_contents()
+    let digit_count = harness
+        .screen_contents()
         .chars()
         .filter(|c| c.is_numeric())
         .count();

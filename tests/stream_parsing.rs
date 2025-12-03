@@ -72,13 +72,13 @@ fn test_partial_escape_sequence_handling() {
     let mut screen = ScreenState::new(80, 24);
 
     // Feed escape sequence in parts (tests state machine robustness)
-    screen.feed(b"\x1b");        // ESC
-    screen.feed(b"[");           // CSI start
-    screen.feed(b"3");           // Parameter digit
-    screen.feed(b"1");           // Parameter digit
-    screen.feed(b"m");           // SGR command
-    screen.feed(b"Red");         // Text
-    screen.feed(b"\x1b[0m");     // Reset
+    screen.feed(b"\x1b"); // ESC
+    screen.feed(b"["); // CSI start
+    screen.feed(b"3"); // Parameter digit
+    screen.feed(b"1"); // Parameter digit
+    screen.feed(b"m"); // SGR command
+    screen.feed(b"Red"); // Text
+    screen.feed(b"\x1b[0m"); // Reset
 
     // Verify red text was rendered
     assert!(screen.contains("Red"));
@@ -160,7 +160,7 @@ fn test_cursor_movement_sequences() {
     let mut screen = ScreenState::new(80, 24);
 
     // Position cursor, write, move cursor, write again
-    screen.feed(b"\x1b[5;5HFirst");   // Row 5, col 5
+    screen.feed(b"\x1b[5;5HFirst"); // Row 5, col 5
     screen.feed(b"\x1b[10;10HSecond"); // Row 10, col 10
 
     // Verify both texts at correct positions
@@ -175,13 +175,13 @@ fn test_cursor_movement_sequences() {
 fn test_cursor_up_down() {
     let mut screen = ScreenState::new(80, 24);
 
-    screen.feed(b"\x1b[10;10H");  // Move to (10, 10)
+    screen.feed(b"\x1b[10;10H"); // Move to (10, 10)
     assert_eq!(screen.cursor_position(), (9, 9));
 
-    screen.feed(b"\x1b[3A");       // Cursor up 3
+    screen.feed(b"\x1b[3A"); // Cursor up 3
     assert_eq!(screen.cursor_position(), (6, 9));
 
-    screen.feed(b"\x1b[5B");       // Cursor down 5
+    screen.feed(b"\x1b[5B"); // Cursor down 5
     assert_eq!(screen.cursor_position(), (11, 9));
 }
 
@@ -189,13 +189,13 @@ fn test_cursor_up_down() {
 fn test_cursor_forward_backward() {
     let mut screen = ScreenState::new(80, 24);
 
-    screen.feed(b"\x1b[10;10H");  // Move to (10, 10)
+    screen.feed(b"\x1b[10;10H"); // Move to (10, 10)
     assert_eq!(screen.cursor_position(), (9, 9));
 
-    screen.feed(b"\x1b[5C");       // Cursor forward 5
+    screen.feed(b"\x1b[5C"); // Cursor forward 5
     assert_eq!(screen.cursor_position(), (9, 14));
 
-    screen.feed(b"\x1b[7D");       // Cursor backward 7
+    screen.feed(b"\x1b[7D"); // Cursor backward 7
     assert_eq!(screen.cursor_position(), (9, 7));
 }
 
@@ -262,12 +262,12 @@ fn test_sixel_sequence_detection() {
     let mut screen = ScreenState::new(80, 24);
 
     // Feed a minimal Sixel sequence with raster attributes
-    screen.feed(b"\x1b[5;10H");           // Position cursor
-    screen.feed(b"\x1bPq");                // DCS - Start Sixel
-    screen.feed(b"\"1;1;100;50");          // Raster: 100x50 pixels
-    screen.feed(b"#0;2;100;100;100");      // Color definition
-    screen.feed(b"#0~");                   // Sixel data
-    screen.feed(b"\x1b\\");                // String terminator
+    screen.feed(b"\x1b[5;10H"); // Position cursor
+    screen.feed(b"\x1bPq"); // DCS - Start Sixel
+    screen.feed(b"\"1;1;100;50"); // Raster: 100x50 pixels
+    screen.feed(b"#0;2;100;100;100"); // Color definition
+    screen.feed(b"#0~"); // Sixel data
+    screen.feed(b"\x1b\\"); // String terminator
 
     // Verify Sixel region was captured
     let regions = screen.sixel_regions();
@@ -310,8 +310,8 @@ fn test_escape_sequence_index() {
     let mut screen = ScreenState::new(80, 24);
 
     // ESC D = Index (move cursor down)
-    screen.feed(b"\x1b[5;10H");  // Position to (5, 10)
-    screen.feed(b"\x1bD");        // Index (down)
+    screen.feed(b"\x1b[5;10H"); // Position to (5, 10)
+    screen.feed(b"\x1bD"); // Index (down)
 
     let (row, col) = screen.cursor_position();
     assert_eq!(row, 5, "Row should increment");
@@ -323,8 +323,8 @@ fn test_escape_sequence_nel() {
     let mut screen = ScreenState::new(80, 24);
 
     // ESC E = Next Line (down + carriage return)
-    screen.feed(b"\x1b[5;10H");  // Position to (5, 10)
-    screen.feed(b"\x1bE");        // Next line
+    screen.feed(b"\x1b[5;10H"); // Position to (5, 10)
+    screen.feed(b"\x1bE"); // Next line
 
     let (row, col) = screen.cursor_position();
     assert_eq!(row, 5, "Row should increment");

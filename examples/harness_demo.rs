@@ -2,8 +2,9 @@
 //!
 //! This example shows how to use the harness for testing TUI applications.
 
-use ratatui_testlib::{Result, TuiTestHarness};
 use std::time::Duration;
+
+use ratatui_testlib::{Result, TuiTestHarness};
 
 fn main() -> Result<()> {
     println!("=== TuiTestHarness Demo ===\n");

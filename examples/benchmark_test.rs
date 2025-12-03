@@ -14,8 +14,9 @@
 #[cfg(feature = "bevy")]
 fn main() -> ratatui_testlib::Result<()> {
     use bevy::prelude::*;
-    use ratatui_testlib::{BevyTuiTestHarness, HeadlessBevyRunner};
-    use ratatui_testlib::bevy::bench::BenchmarkableHarness;
+    use ratatui_testlib::{
+        bevy::bench::BenchmarkableHarness, BevyTuiTestHarness, HeadlessBevyRunner,
+    };
 
     println!("=== Performance Profiling Example ===\n");
 
@@ -68,10 +69,16 @@ fn main() -> ratatui_testlib::Result<()> {
     println!("\n4. Benchmarking with Heavy Workload\n");
 
     #[derive(Component)]
-    struct Position { x: f32, y: f32 }
+    struct Position {
+        x: f32,
+        y: f32,
+    }
 
     #[derive(Component)]
-    struct Velocity { dx: f32, dy: f32 }
+    struct Velocity {
+        dx: f32,
+        dy: f32,
+    }
 
     // Physics simulation system
     fn update_positions(mut query: Query<(&mut Position, &Velocity)>) {
@@ -93,10 +100,9 @@ fn main() -> ratatui_testlib::Result<()> {
 
     // Spawn 100 entities with physics components
     for i in 0..100 {
-        heavy_harness.world_mut().spawn((
-            Position { x: i as f32, y: i as f32 },
-            Velocity { dx: 0.1, dy: 0.1 },
-        ));
+        heavy_harness
+            .world_mut()
+            .spawn((Position { x: i as f32, y: i as f32 }, Velocity { dx: 0.1, dy: 0.1 }));
     }
 
     println!("Benchmarking with 100 entities and physics simulation...");
@@ -106,7 +112,10 @@ fn main() -> ratatui_testlib::Result<()> {
 
     // Analyze percentiles
     println!("Percentile Analysis:");
-    println!("  p50 (median): {:.2}ms - 50% of frames are faster than this", heavy_results.p50_ms);
+    println!(
+        "  p50 (median): {:.2}ms - 50% of frames are faster than this",
+        heavy_results.p50_ms
+    );
     println!("  p95: {:.2}ms - 95% of frames are faster than this", heavy_results.p95_ms);
     println!("  p99: {:.2}ms - 99% of frames are faster than this", heavy_results.p99_ms);
     println!("  max: {:.2}ms - worst-case frame time", heavy_results.max_frame_time_ms);
@@ -127,10 +136,9 @@ fn main() -> ratatui_testlib::Result<()> {
 
     // Spawn same workload
     for i in 0..100 {
-        runner.world_mut().spawn((
-            Position { x: i as f32, y: i as f32 },
-            Velocity { dx: 0.1, dy: 0.1 },
-        ));
+        runner
+            .world_mut()
+            .spawn((Position { x: i as f32, y: i as f32 }, Velocity { dx: 0.1, dy: 0.1 }));
     }
 
     // Add physics system
@@ -143,10 +151,14 @@ fn main() -> ratatui_testlib::Result<()> {
 
     // Compare performance
     println!("Performance Comparison:");
-    println!("  PTY Harness avg: {:.2}ms ({:.2} FPS)",
-             heavy_results.avg_frame_time_ms, heavy_results.fps_avg);
-    println!("  Headless avg: {:.2}ms ({:.2} FPS)",
-             headless_results.avg_frame_time_ms, headless_results.fps_avg);
+    println!(
+        "  PTY Harness avg: {:.2}ms ({:.2} FPS)",
+        heavy_results.avg_frame_time_ms, heavy_results.fps_avg
+    );
+    println!(
+        "  Headless avg: {:.2}ms ({:.2} FPS)",
+        headless_results.avg_frame_time_ms, headless_results.fps_avg
+    );
 
     let speedup = heavy_results.avg_frame_time_ms / headless_results.avg_frame_time_ms;
     println!("  Speedup: {:.2}x (headless is faster due to no PTY overhead)", speedup);

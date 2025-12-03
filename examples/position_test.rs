@@ -16,7 +16,9 @@ fn main() -> Result<()> {
 
     // Header at top
     harness.state_mut().feed(b"\x1b[1;1H");
-    harness.state_mut().feed(b"========== My Application ==========");
+    harness
+        .state_mut()
+        .feed(b"========== My Application ==========");
 
     // Sidebar on left (rows 3-22)
     harness.state_mut().feed(b"\x1b[3;1HFiles");
@@ -26,8 +28,12 @@ fn main() -> Result<()> {
 
     // Content area on right
     harness.state_mut().feed(b"\x1b[3;25HContent Area");
-    harness.state_mut().feed(b"\x1b[5;25HThis is the main content");
-    harness.state_mut().feed(b"\x1b[6;25Hwhere text is displayed.");
+    harness
+        .state_mut()
+        .feed(b"\x1b[5;25HThis is the main content");
+    harness
+        .state_mut()
+        .feed(b"\x1b[6;25Hwhere text is displayed.");
 
     // Tab bar at bottom
     harness.state_mut().feed(b"\x1b[23;1HTab 1 | Tab 2 | Tab 3");

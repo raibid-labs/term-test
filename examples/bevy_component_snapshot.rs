@@ -77,10 +77,7 @@ fn example_1_basic_component_snapshot() -> Result<()> {
     let mut harness = BevyTuiTestHarness::new()?;
 
     // Spawn an entity with health
-    harness.world_mut().spawn(Health {
-        current: 100,
-        max: 100,
-    });
+    harness.world_mut().spawn(Health { current: 100, max: 100 });
 
     // Capture snapshot
     let snapshots = harness.snapshot_components::<Health>();
@@ -129,11 +126,13 @@ fn example_2_multiple_components() -> Result<()> {
 
     println!("Captured {} Position components:", snapshots.len());
     for (i, snapshot) in snapshots.iter().enumerate() {
-        println!("  [{}] Entity {}: ({}, {})",
-                 i,
-                 snapshot.entity_id(),
-                 snapshot.data().x,
-                 snapshot.data().y);
+        println!(
+            "  [{}] Entity {}: ({}, {})",
+            i,
+            snapshot.entity_id(),
+            snapshot.data().x,
+            snapshot.data().y
+        );
     }
 
     println!("\nUse case: Verify UI element positions after layout calculation");
@@ -167,11 +166,17 @@ fn example_3_filtered_snapshots() -> Result<()> {
     let mut harness = BevyTuiTestHarness::new()?;
 
     // Spawn buttons
-    harness.world_mut().spawn((Size { width: 100, height: 30 }, Button));
-    harness.world_mut().spawn((Size { width: 120, height: 30 }, Button));
+    harness
+        .world_mut()
+        .spawn((Size { width: 100, height: 30 }, Button));
+    harness
+        .world_mut()
+        .spawn((Size { width: 120, height: 30 }, Button));
 
     // Spawn panels
-    harness.world_mut().spawn((Size { width: 800, height: 600 }, Panel));
+    harness
+        .world_mut()
+        .spawn((Size { width: 800, height: 600 }, Panel));
 
     // Snapshot only button sizes
     let button_snapshots = harness.snapshot_components_filtered::<Size, Button>();
@@ -231,25 +236,20 @@ fn example_4_system_execution() -> Result<()> {
     let mut harness = BevyTuiTestHarness::with_app(app)?;
 
     // Spawn entity
-    harness.world_mut().spawn((
-        Position { x: 0, y: 0 },
-        Velocity { dx: 10, dy: 20 },
-    ));
+    harness
+        .world_mut()
+        .spawn((Position { x: 0, y: 0 }, Velocity { dx: 10, dy: 20 }));
 
     // Initial snapshot
     let initial = harness.snapshot_components::<Position>();
-    println!("Initial position: ({}, {})",
-             initial[0].data().x,
-             initial[0].data().y);
+    println!("Initial position: ({}, {})", initial[0].data().x, initial[0].data().y);
 
     // Run 3 frames
     harness.update_bevy(3)?;
 
     // After update snapshot
     let after_frames = harness.snapshot_components::<Position>();
-    println!("After 3 frames: ({}, {})",
-             after_frames[0].data().x,
-             after_frames[0].data().y);
+    println!("After 3 frames: ({}, {})", after_frames[0].data().x, after_frames[0].data().y);
 
     println!("\nIn a real test:");
     println!("  insta::assert_json_snapshot!(\"position_initial\", initial);");

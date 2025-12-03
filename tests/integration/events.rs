@@ -1,11 +1,11 @@
-//! Integration tests for keyboard event simulation.
+//! Integration tests for keyboard and mouse event simulation.
 //!
-//! These tests verify that keyboard events are correctly encoded and sent to
+//! These tests verify that keyboard and mouse events are correctly encoded and sent to
 //! PTY-based applications, and that the applications respond as expected.
 
 use portable_pty::CommandBuilder;
 use std::time::Duration;
-use term_test::{KeyCode, Modifiers, Result, TuiTestHarness};
+use term_test::{KeyCode, Modifiers, MouseButton, Result, ScrollDirection, TuiTestHarness};
 
 /// Test sending a single character key.
 #[test]
@@ -409,6 +409,180 @@ fn test_delete_key() -> Result<()> {
     assert!(
         !contents.is_empty(),
         "Screen should show escape sequence for Delete"
+    );
+
+    Ok(())
+}
+
+// ============================================================================
+// Mouse Event Tests
+// ============================================================================
+
+/// Test sending a left mouse click.
+#[test]
+fn test_mouse_left_click() -> Result<()> {
+    let mut harness = TuiTestHarness::new(80, 24)?;
+
+    // Use od to show the bytes sent
+    let mut cmd = CommandBuilder::new("bash");
+    cmd.arg("-c")
+        .arg("dd bs=1 count=16 2>/dev/null | od -An -tx1");
+    harness.spawn(cmd)?;
+
+    std::thread::sleep(Duration::from_millis(100));
+
+    // Send a left click at position (10, 5)
+    harness.click(10, 5)?;
+
+    std::thread::sleep(Duration::from_millis(300));
+    let contents = harness.screen_contents();
+
+    // Should see the SGR mouse sequence: ESC[<0;11;6M (press) and ESC[<0;11;6m (release)
+    // Looking for the escape sequence start: 1b 5b 3c (ESC [ <)
+    assert!(
+        contents.contains("1b") && contents.contains("5b") && contents.contains("3c"),
+        "Expected SGR mouse sequence for left click, got: {}",
+        contents
+    );
+
+    Ok(())
+}
+
+/// Test sending a right mouse click.
+#[test]
+fn test_mouse_right_click() -> Result<()> {
+    let mut harness = TuiTestHarness::new(80, 24)?;
+
+    let mut cmd = CommandBuilder::new("bash");
+    cmd.arg("-c")
+        .arg("dd bs=1 count=16 2>/dev/null | od -An -tx1");
+    harness.spawn(cmd)?;
+
+    std::thread::sleep(Duration::from_millis(100));
+
+    // Send a right click at position (10, 5)
+    harness.right_click(10, 5)?;
+
+    std::thread::sleep(Duration::from_millis(300));
+    let contents = harness.screen_contents();
+
+    // Should see SGR mouse sequence starting with ESC[<2 (button 2 = right)
+    assert!(
+        contents.contains("1b") && contents.contains("5b"),
+        "Expected SGR mouse sequence for right click, got: {}",
+        contents
+    );
+
+    Ok(())
+}
+
+/// Test sending mouse scroll events.
+#[test]
+fn test_mouse_scroll() -> Result<()> {
+    let mut harness = TuiTestHarness::new(80, 24)?;
+
+    let mut cmd = CommandBuilder::new("bash");
+    cmd.arg("-c")
+        .arg("dd bs=1 count=16 2>/dev/null | od -An -tx1");
+    harness.spawn(cmd)?;
+
+    std::thread::sleep(Duration::from_millis(100));
+
+    // Send scroll up event
+    harness.scroll(10, 5, ScrollDirection::Up, 1)?;
+
+    std::thread::sleep(Duration::from_millis(300));
+    let contents = harness.screen_contents();
+
+    // Should see SGR mouse sequence
+    assert!(
+        contents.contains("1b") && contents.contains("5b"),
+        "Expected SGR mouse sequence for scroll, got: {}",
+        contents
+    );
+
+    Ok(())
+}
+
+/// Test sending a drag operation.
+#[test]
+fn test_mouse_drag() -> Result<()> {
+    let mut harness = TuiTestHarness::new(80, 24)?;
+
+    let mut cmd = CommandBuilder::new("bash");
+    cmd.arg("-c")
+        .arg("dd bs=1 count=48 2>/dev/null | od -An -tx1");
+    harness.spawn(cmd)?;
+
+    std::thread::sleep(Duration::from_millis(100));
+
+    // Send drag from (10, 5) to (20, 15)
+    harness.drag((10, 5), (20, 15))?;
+
+    std::thread::sleep(Duration::from_millis(300));
+    let contents = harness.screen_contents();
+
+    // Should see multiple SGR mouse sequences (press, motion, release)
+    assert!(
+        contents.contains("1b") && contents.contains("5b"),
+        "Expected SGR mouse sequences for drag, got: {}",
+        contents
+    );
+
+    Ok(())
+}
+
+/// Test sending mouse click with modifiers.
+#[test]
+fn test_mouse_click_with_ctrl() -> Result<()> {
+    let mut harness = TuiTestHarness::new(80, 24)?;
+
+    let mut cmd = CommandBuilder::new("bash");
+    cmd.arg("-c")
+        .arg("dd bs=1 count=16 2>/dev/null | od -An -tx1");
+    harness.spawn(cmd)?;
+
+    std::thread::sleep(Duration::from_millis(100));
+
+    // Send Ctrl+Click
+    harness.send_mouse_event(10, 5, MouseButton::Left, Modifiers::CTRL)?;
+
+    std::thread::sleep(Duration::from_millis(300));
+    let contents = harness.screen_contents();
+
+    // Should see SGR mouse sequence with modified button code
+    assert!(
+        contents.contains("1b") && contents.contains("5b"),
+        "Expected SGR mouse sequence with Ctrl modifier, got: {}",
+        contents
+    );
+
+    Ok(())
+}
+
+/// Test multiple scroll events.
+#[test]
+fn test_mouse_multiple_scrolls() -> Result<()> {
+    let mut harness = TuiTestHarness::new(80, 24)?;
+
+    let mut cmd = CommandBuilder::new("bash");
+    cmd.arg("-c")
+        .arg("dd bs=1 count=48 2>/dev/null | od -An -tx1");
+    harness.spawn(cmd)?;
+
+    std::thread::sleep(Duration::from_millis(100));
+
+    // Send 3 scroll up events
+    harness.scroll(10, 5, ScrollDirection::Up, 3)?;
+
+    std::thread::sleep(Duration::from_millis(300));
+    let contents = harness.screen_contents();
+
+    // Should see multiple SGR mouse sequences
+    assert!(
+        contents.contains("1b") && contents.contains("5b"),
+        "Expected multiple SGR mouse sequences for scrolling, got: {}",
+        contents
     );
 
     Ok(())

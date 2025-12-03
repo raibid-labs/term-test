@@ -81,32 +81,32 @@
 //! ```
 
 // Submodules
-pub mod headless;
 pub mod bench;
+pub mod headless;
 
 // Re-exports
+pub use bench::{BenchmarkResults, BenchmarkableHarness, ProfileResults};
+// Bevy ECS imports
+use bevy::app::App;
+use bevy::{
+    ecs::{component::Component, world::World},
+    prelude::{Entity, Update, With},
+    MinimalPlugins,
+};
 pub use headless::HeadlessBevyRunner;
-pub use bench::{BenchmarkResults, ProfileResults, BenchmarkableHarness};
-
-use crate::error::{Result, TermTestError};
-use crate::harness::TuiTestHarness;
-use crate::screen::ScreenState;
+// Snapshot testing imports
+#[cfg(feature = "snapshot-insta")]
+use serde::{Deserialize, Serialize};
+#[cfg(feature = "snapshot-insta")]
+use serde_json;
 
 #[cfg(feature = "sixel")]
 use crate::sixel::SixelCapture;
-
-// Bevy ECS imports
-use bevy::app::App;
-use bevy::ecs::component::Component;
-use bevy::ecs::world::World;
-use bevy::prelude::{Entity, Update, With};
-use bevy::MinimalPlugins;
-
-// Snapshot testing imports
-#[cfg(feature = "snapshot-insta")]
-use serde::{Serialize, Deserialize};
-#[cfg(feature = "snapshot-insta")]
-use serde_json;
+use crate::{
+    error::{Result, TermTestError},
+    harness::TuiTestHarness,
+    screen::ScreenState,
+};
 
 // ============================================================================
 // Component Snapshot (Issue #12)
@@ -128,8 +128,8 @@ use serde_json;
 /// ```rust,no_run
 /// # #[cfg(all(feature = "bevy", feature = "snapshot-insta"))]
 /// # {
-/// use ratatui_testlib::BevyTuiTestHarness;
 /// use bevy::prelude::*;
+/// use ratatui_testlib::BevyTuiTestHarness;
 /// use serde::Serialize;
 ///
 /// #[derive(Component, Serialize)]
@@ -326,7 +326,9 @@ impl BevyTuiTestHarness {
         let mut harness = Self::new()?;
 
         // Add bevy_ratatui plugin
-        harness.app.add_plugins(bevy_ratatui::RatatuiPlugins::default());
+        harness
+            .app
+            .add_plugins(bevy_ratatui::RatatuiPlugins::default());
 
         Ok(harness)
     }
@@ -348,8 +350,8 @@ impl BevyTuiTestHarness {
     /// ```rust,no_run
     /// # #[cfg(feature = "bevy")]
     /// # {
-    /// use ratatui_testlib::BevyTuiTestHarness;
     /// use bevy::prelude::*;
+    /// use ratatui_testlib::BevyTuiTestHarness;
     ///
     /// # fn test() -> ratatui_testlib::Result<()> {
     /// let mut app = App::new();
@@ -448,8 +450,8 @@ impl BevyTuiTestHarness {
     /// ```rust,no_run
     /// # #[cfg(feature = "bevy")]
     /// # {
-    /// use ratatui_testlib::BevyTuiTestHarness;
     /// use bevy::prelude::*;
+    /// use ratatui_testlib::BevyTuiTestHarness;
     ///
     /// # fn test() -> ratatui_testlib::Result<()> {
     /// let harness = BevyTuiTestHarness::new()?;
@@ -478,8 +480,8 @@ impl BevyTuiTestHarness {
     /// ```rust,no_run
     /// # #[cfg(feature = "bevy")]
     /// # {
-    /// use ratatui_testlib::BevyTuiTestHarness;
     /// use bevy::prelude::*;
+    /// use ratatui_testlib::BevyTuiTestHarness;
     ///
     /// #[derive(Component)]
     /// struct TestMarker;
@@ -513,8 +515,8 @@ impl BevyTuiTestHarness {
     /// ```rust,no_run
     /// # #[cfg(feature = "bevy")]
     /// # {
-    /// use ratatui_testlib::BevyTuiTestHarness;
     /// use bevy::prelude::*;
+    /// use ratatui_testlib::BevyTuiTestHarness;
     ///
     /// #[derive(Component)]
     /// struct Health(u32);
@@ -555,8 +557,8 @@ impl BevyTuiTestHarness {
     /// ```rust,no_run
     /// # #[cfg(feature = "bevy")]
     /// # {
-    /// use ratatui_testlib::BevyTuiTestHarness;
     /// use bevy::prelude::*;
+    /// use ratatui_testlib::BevyTuiTestHarness;
     ///
     /// #[derive(Component)]
     /// struct Position(i32, i32);
@@ -603,8 +605,8 @@ impl BevyTuiTestHarness {
     /// ```rust,no_run
     /// # #[cfg(feature = "bevy")]
     /// # {
-    /// use ratatui_testlib::BevyTuiTestHarness;
     /// use bevy::prelude::*;
+    /// use ratatui_testlib::BevyTuiTestHarness;
     ///
     /// #[derive(Component)]
     /// struct Name(String);
@@ -639,8 +641,8 @@ impl BevyTuiTestHarness {
     /// ```rust,no_run
     /// # #[cfg(feature = "bevy")]
     /// # {
-    /// use ratatui_testlib::BevyTuiTestHarness;
     /// use bevy::prelude::*;
+    /// use ratatui_testlib::BevyTuiTestHarness;
     ///
     /// #[derive(Component)]
     /// struct CommandPaletteMarker;
@@ -684,8 +686,8 @@ impl BevyTuiTestHarness {
     /// ```rust,no_run
     /// # #[cfg(feature = "bevy")]
     /// # {
-    /// use ratatui_testlib::BevyTuiTestHarness;
     /// use bevy::prelude::*;
+    /// use ratatui_testlib::BevyTuiTestHarness;
     ///
     /// #[derive(Component)]
     /// struct Enemy;
@@ -753,8 +755,8 @@ impl BevyTuiTestHarness {
     /// ```rust,no_run
     /// # #[cfg(all(feature = "bevy", feature = "snapshot-insta"))]
     /// # {
-    /// use ratatui_testlib::BevyTuiTestHarness;
     /// use bevy::prelude::*;
+    /// use ratatui_testlib::BevyTuiTestHarness;
     /// use serde::Serialize;
     ///
     /// #[derive(Component, Serialize)]
@@ -807,19 +809,24 @@ impl BevyTuiTestHarness {
     /// ```rust,no_run
     /// # #[cfg(all(feature = "bevy", feature = "snapshot-insta"))]
     /// # {
-    /// use ratatui_testlib::BevyTuiTestHarness;
     /// use bevy::prelude::*;
+    /// use ratatui_testlib::BevyTuiTestHarness;
     /// use serde::Serialize;
     ///
     /// #[derive(Component, Serialize, Clone)]
-    /// struct Position { x: f32, y: f32 }
+    /// struct Position {
+    ///     x: f32,
+    ///     y: f32,
+    /// }
     ///
     /// #[derive(Component)]
     /// struct Enemy;
     ///
     /// # fn test() -> ratatui_testlib::Result<()> {
     /// let mut harness = BevyTuiTestHarness::new()?;
-    /// harness.world_mut().spawn((Position { x: 10.0, y: 20.0 }, Enemy));
+    /// harness
+    ///     .world_mut()
+    ///     .spawn((Position { x: 10.0, y: 20.0 }, Enemy));
     /// harness.world_mut().spawn(Position { x: 5.0, y: 15.0 }); // Not an enemy
     ///
     /// let snapshots = harness.snapshot_components_filtered::<Position, Enemy>();
@@ -830,9 +837,7 @@ impl BevyTuiTestHarness {
     /// # }
     /// ```
     #[cfg(feature = "snapshot-insta")]
-    pub fn snapshot_components_filtered<T, F>(
-        &mut self,
-    ) -> Vec<ComponentSnapshot<T>>
+    pub fn snapshot_components_filtered<T, F>(&mut self) -> Vec<ComponentSnapshot<T>>
     where
         T: Component + Serialize + Clone,
         F: Component,
@@ -865,8 +870,8 @@ impl BevyTuiTestHarness {
     /// ```rust,no_run
     /// # #[cfg(all(feature = "bevy", feature = "snapshot-insta"))]
     /// # {
-    /// use ratatui_testlib::BevyTuiTestHarness;
     /// use bevy::prelude::*;
+    /// use ratatui_testlib::BevyTuiTestHarness;
     /// use serde::Serialize;
     ///
     /// #[derive(Component, Serialize, Clone)]
@@ -877,7 +882,9 @@ impl BevyTuiTestHarness {
     ///
     /// # fn test() -> ratatui_testlib::Result<()> {
     /// let mut harness = BevyTuiTestHarness::new()?;
-    /// harness.world_mut().spawn(UiLayout { width: 800, height: 600 });
+    /// harness
+    ///     .world_mut()
+    ///     .spawn(UiLayout { width: 800, height: 600 });
     ///
     /// // This will create/compare against: snapshots/test__ui_layout_initial.snap
     /// harness.assert_component_snapshot::<UiLayout>("ui_layout_initial");
@@ -993,9 +1000,7 @@ impl BevyTuiTestHarness {
     /// harness.update()?;
     ///
     /// // Wait for specific text to appear
-    /// harness.wait_for(|state| {
-    ///     state.contains("Ready")
-    /// })?;
+    /// harness.wait_for(|state| state.contains("Ready"))?;
     /// # Ok(())
     /// # }
     /// # }
@@ -1112,8 +1117,9 @@ impl bench::BenchmarkableHarness for BevyTuiTestHarness {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use bevy::prelude::*;
+
+    use super::*;
 
     #[derive(Component)]
     struct TestHealth(u32);
@@ -1192,11 +1198,17 @@ mod tests {
         let mut harness = BevyTuiTestHarness::new().unwrap();
 
         // Spawn enemies with positions
-        harness.world_mut().spawn((TestPosition(10, 20), EnemyMarker));
-        harness.world_mut().spawn((TestPosition(30, 40), EnemyMarker));
+        harness
+            .world_mut()
+            .spawn((TestPosition(10, 20), EnemyMarker));
+        harness
+            .world_mut()
+            .spawn((TestPosition(30, 40), EnemyMarker));
 
         // Spawn player with position (no enemy marker)
-        harness.world_mut().spawn((TestPosition(5, 15), PlayerMarker));
+        harness
+            .world_mut()
+            .spawn((TestPosition(5, 15), PlayerMarker));
 
         // Query only enemy positions
         let enemy_positions = harness.query_filtered::<TestPosition, EnemyMarker>();
@@ -1318,7 +1330,9 @@ mod tests {
             score: u32,
         }
 
-        harness.world_mut().spawn(GameState { level: 1, score: 100 });
+        harness
+            .world_mut()
+            .spawn(GameState { level: 1, score: 100 });
 
         // Verify ECS state
         assert!(harness.assert_component_exists::<GameState>().is_ok());
@@ -1646,11 +1660,17 @@ mod tests {
         let mut harness = BevyTuiTestHarness::new().unwrap();
 
         // Spawn enemies with health
-        harness.world_mut().spawn((Health { current: 50, max: 100 }, Enemy));
-        harness.world_mut().spawn((Health { current: 75, max: 100 }, Enemy));
+        harness
+            .world_mut()
+            .spawn((Health { current: 50, max: 100 }, Enemy));
+        harness
+            .world_mut()
+            .spawn((Health { current: 75, max: 100 }, Enemy));
 
         // Spawn player with health
-        harness.world_mut().spawn((Health { current: 100, max: 100 }, Player));
+        harness
+            .world_mut()
+            .spawn((Health { current: 100, max: 100 }, Player));
 
         // Snapshot only enemy health
         let enemy_snapshots = harness.snapshot_components_filtered::<Health, Enemy>();
@@ -1763,10 +1783,9 @@ mod tests {
         }
 
         let mut harness = BevyTuiTestHarness::new().unwrap();
-        harness.world_mut().spawn(TestData {
-            name: "test".to_string(),
-            value: 42,
-        });
+        harness
+            .world_mut()
+            .spawn(TestData { name: "test".to_string(), value: 42 });
 
         let snapshots = harness.snapshot_components::<TestData>();
 
@@ -1792,11 +1811,9 @@ mod tests {
         let mut harness = BevyTuiTestHarness::new().unwrap();
 
         // Initial game state
-        harness.world_mut().spawn(GameState {
-            level: 1,
-            score: 0,
-            lives: 3,
-        });
+        harness
+            .world_mut()
+            .spawn(GameState { level: 1, score: 0, lives: 3 });
 
         let initial_snapshot = harness.snapshot_components::<GameState>();
         assert_eq!(initial_snapshot.len(), 1);
@@ -1870,10 +1887,10 @@ mod tests {
         // Complex Sixel with multiple colors
         state.feed(b"\x1b[15;25H");
         state.feed(b"\x1bPq\"1;1;640;480");
-        state.feed(b"#0;2;0;0;0");       // Black
-        state.feed(b"#1;2;100;0;0");     // Red
-        state.feed(b"#2;2;0;100;0");     // Green
-        state.feed(b"#0~~~#1@@@#2~~~");  // Data
+        state.feed(b"#0;2;0;0;0"); // Black
+        state.feed(b"#1;2;100;0;0"); // Red
+        state.feed(b"#2;2;0;100;0"); // Green
+        state.feed(b"#0~~~#1@@@#2~~~"); // Data
         state.feed(b"\x1b\\");
 
         let capture = harness.capture_sixel_state().unwrap();
@@ -1883,7 +1900,7 @@ mod tests {
         assert_eq!(seq.position, (14, 24)); // 0-based
 
         let (_, _, width, height) = seq.bounds;
-        assert_eq!(width, 80);  // 640px / 8px per cell
+        assert_eq!(width, 80); // 640px / 8px per cell
         assert_eq!(height, 80); // 480px / 6px per cell
     }
 

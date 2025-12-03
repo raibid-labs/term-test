@@ -245,8 +245,7 @@ async fn example_4_timeout_handling() -> Result<()> {
 
     match result {
         Ok(Ok(contents)) => {
-            println!("  ✓ Operation completed: {}",
-                contents.lines().next().unwrap_or("").trim());
+            println!("  ✓ Operation completed: {}", contents.lines().next().unwrap_or("").trim());
         }
         Ok(Err(e)) => println!("  ✗ Operation failed: {}", e),
         Err(_) => println!("  ✗ Operation timed out"),
@@ -301,7 +300,7 @@ async fn example_5_practical_scenario() -> Result<()> {
          sleep 0.1 && \
          echo 'Processing...' && \
          sleep 0.1 && \
-         echo 'Complete!'"
+         echo 'Complete!'",
     );
 
     harness.spawn(cmd)?;

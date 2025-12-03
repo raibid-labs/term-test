@@ -25,9 +25,10 @@
 //!
 //! Each section shows the captured screen contents and cursor position.
 
+use std::time::Duration;
+
 use portable_pty::CommandBuilder;
 use ratatui_testlib::{Result, TuiTestHarness};
-use std::time::Duration;
 
 fn main() -> Result<()> {
     println!("=== Basic ratatui_testlib Example ===\n");
@@ -98,8 +99,10 @@ fn example_1_simple_echo() -> Result<()> {
     println!("Cursor position: row={}, col={}", row, col);
 
     // Verify the text appears on screen
-    assert!(contents.contains("Hello from ratatui_testlib!"),
-        "Expected text not found in output");
+    assert!(
+        contents.contains("Hello from ratatui_testlib!"),
+        "Expected text not found in output"
+    );
 
     // Note: wait_exit() can hang with very short-lived processes
     // In real tests, use is_running() to check if process has exited
@@ -143,12 +146,9 @@ fn example_2_multiline_output() -> Result<()> {
     println!("└{:─<80}┘", "");
 
     // Verify each line appears correctly
-    assert!(contents.contains("Line 1: First"),
-        "First line not found");
-    assert!(contents.contains("Line 2: Second"),
-        "Second line not found");
-    assert!(contents.contains("Line 3: Third"),
-        "Third line not found");
+    assert!(contents.contains("Line 1: First"), "First line not found");
+    assert!(contents.contains("Line 2: Second"), "Second line not found");
+    assert!(contents.contains("Line 3: Third"), "Third line not found");
 
     println!("All three lines captured successfully");
 
@@ -253,7 +253,7 @@ fn example_5_cursor_tracking() -> Result<()> {
     // ESC[5;10H moves cursor to row 5, column 10 (1-based)
     // Note: We use printf to send escape sequences
     let mut cmd = CommandBuilder::new("printf");
-    cmd.arg("\\033[5;10HX");  // Move to (5,10) and print X
+    cmd.arg("\\033[5;10HX"); // Move to (5,10) and print X
 
     harness.spawn(cmd)?;
     println!("Spawned: printf with cursor movement escape sequence");

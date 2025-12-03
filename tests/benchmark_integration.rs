@@ -6,8 +6,7 @@
 #![cfg(feature = "bevy")]
 
 use bevy::prelude::*;
-use ratatui_testlib::{BevyTuiTestHarness, HeadlessBevyRunner};
-use ratatui_testlib::bevy::bench::BenchmarkableHarness;
+use ratatui_testlib::{bevy::bench::BenchmarkableHarness, BevyTuiTestHarness, HeadlessBevyRunner};
 
 #[test]
 fn test_benchmark_basic_harness() {
@@ -203,10 +202,16 @@ fn test_headless_vs_pty_performance() {
 #[test]
 fn test_benchmark_with_workload() {
     #[derive(Component)]
-    struct Position { x: f32, y: f32 }
+    struct Position {
+        x: f32,
+        y: f32,
+    }
 
     #[derive(Component)]
-    struct Velocity { dx: f32, dy: f32 }
+    struct Velocity {
+        dx: f32,
+        dy: f32,
+    }
 
     fn physics_system(mut query: Query<'_, '_, (&mut Position, &Velocity)>) {
         for (mut pos, vel) in query.iter_mut() {
@@ -227,10 +232,9 @@ fn test_benchmark_with_workload() {
 
     // Spawn 50 entities
     for i in 0..50 {
-        harness.world_mut().spawn((
-            Position { x: i as f32, y: i as f32 },
-            Velocity { dx: 0.1, dy: 0.1 },
-        ));
+        harness
+            .world_mut()
+            .spawn((Position { x: i as f32, y: i as f32 }, Velocity { dx: 0.1, dy: 0.1 }));
     }
 
     // Benchmark with realistic workload

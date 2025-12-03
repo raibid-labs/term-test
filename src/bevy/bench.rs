@@ -73,8 +73,12 @@
 //! # }
 //! ```
 
+use std::{
+    mem::size_of,
+    time::{Duration, Instant},
+};
+
 use crate::error::Result;
-use std::time::{Duration, Instant};
 
 /// Results from a rendering benchmark.
 ///
@@ -263,8 +267,10 @@ impl BenchmarkResults {
 /// // Profile a single frame
 /// let profile = harness.profile_update_cycle()?;
 ///
-/// println!("Frame took {:.2}ms ({:.2} FPS equivalent)",
-///          profile.duration_ms, profile.fps_equivalent);
+/// println!(
+///     "Frame took {:.2}ms ({:.2} FPS equivalent)",
+///     profile.duration_ms, profile.fps_equivalent
+/// );
 ///
 /// // Ensure single frame is under 60 FPS target
 /// assert!(profile.duration_ms < 16.67);
@@ -298,10 +304,7 @@ impl ProfileResults {
             0.0
         };
 
-        Self {
-            duration_ms,
-            fps_equivalent,
-        }
+        Self { duration_ms, fps_equivalent }
     }
 
     /// Returns a formatted summary string.
@@ -317,6 +320,86 @@ impl ProfileResults {
         format!(
             "Frame Profile:\n  Duration: {:.2}ms\n  FPS Equivalent: {:.2}",
             self.duration_ms, self.fps_equivalent
+        )
+    }
+}
+
+/// Results from memory profiling.
+///
+/// Provides estimated memory usage for a test harness, including the screen
+/// buffer, Sixel regions, and recording buffer (if active).
+///
+/// # Memory Estimation
+///
+/// This struct provides size estimates, not precise heap measurements:
+///
+/// - **Screen buffer**: `width * height * size_of::<Cell>()`
+/// - **Sixel regions**: Sum of all Sixel data sizes
+/// - **Recording buffer**: Size of recorded events (if recording is active)
+///
+/// These are conservative estimates useful for detecting memory regressions
+/// in tests, not exact heap profiling.
+///
+/// # Example
+///
+/// ```rust,no_run
+/// # #[cfg(feature = "bevy")]
+/// # {
+/// use ratatui_testlib::TuiTestHarness;
+///
+/// # fn test() -> ratatui_testlib::Result<()> {
+/// let harness = TuiTestHarness::new(80, 24)?;
+///
+/// // Get memory usage estimate
+/// let memory = harness.memory_usage();
+/// println!("Current: {} bytes", memory.current_bytes);
+/// println!("Peak: {} bytes", memory.peak_bytes);
+///
+/// // Assert memory stays under limit (e.g., 1MB)
+/// harness.assert_memory_under(1_000_000)?;
+/// # Ok(())
+/// # }
+/// # }
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MemoryResults {
+    /// Current estimated memory usage in bytes.
+    pub current_bytes: usize,
+    /// Peak estimated memory usage in bytes.
+    ///
+    /// Note: In the current implementation, this is the same as current_bytes
+    /// since we don't track historical peak values. Future versions may add
+    /// peak tracking across multiple measurements.
+    pub peak_bytes: usize,
+}
+
+impl MemoryResults {
+    /// Creates memory results from byte counts.
+    ///
+    /// # Arguments
+    ///
+    /// * `current_bytes` - Current memory usage estimate
+    /// * `peak_bytes` - Peak memory usage estimate
+    pub fn new(current_bytes: usize, peak_bytes: usize) -> Self {
+        Self { current_bytes, peak_bytes }
+    }
+
+    /// Returns a formatted summary string.
+    ///
+    /// # Example Output
+    ///
+    /// ```text
+    /// Memory Usage:
+    ///   Current: 123,456 bytes (120.56 KB)
+    ///   Peak: 150,000 bytes (146.48 KB)
+    /// ```
+    pub fn summary(&self) -> String {
+        format!(
+            "Memory Usage:\n  Current: {} bytes ({:.2} KB)\n  Peak: {} bytes ({:.2} KB)",
+            self.current_bytes,
+            self.current_bytes as f64 / 1024.0,
+            self.peak_bytes,
+            self.peak_bytes as f64 / 1024.0
         )
     }
 }
@@ -590,5 +673,57 @@ mod tests {
 
         assert!(results.meets_fps_requirement(60.0));
         assert!(results.avg_frame_time_ms < 16.67);
+    }
+
+    #[test]
+    fn test_memory_results_new() {
+        let memory = MemoryResults::new(1024, 2048);
+
+        assert_eq!(memory.current_bytes, 1024);
+        assert_eq!(memory.peak_bytes, 2048);
+    }
+
+    #[test]
+    fn test_memory_results_equality() {
+        let memory1 = MemoryResults::new(1024, 1024);
+        let memory2 = MemoryResults::new(1024, 1024);
+        let memory3 = MemoryResults::new(2048, 2048);
+
+        assert_eq!(memory1, memory2);
+        assert_ne!(memory1, memory3);
+    }
+
+    #[test]
+    fn test_memory_results_summary() {
+        let memory = MemoryResults::new(123_456, 150_000);
+        let summary = memory.summary();
+
+        assert!(summary.contains("Memory Usage"));
+        assert!(summary.contains("123456")); // Numbers are not comma-formatted
+        assert!(summary.contains("150000"));
+        assert!(summary.contains("KB"));
+    }
+
+    #[test]
+    fn test_memory_results_zero() {
+        let memory = MemoryResults::new(0, 0);
+        let summary = memory.summary();
+
+        assert_eq!(memory.current_bytes, 0);
+        assert_eq!(memory.peak_bytes, 0);
+        assert!(summary.contains("0 bytes"));
+    }
+
+    #[test]
+    fn test_memory_results_large_values() {
+        // Test with ~10 MB
+        let memory = MemoryResults::new(10_485_760, 10_485_760);
+
+        assert_eq!(memory.current_bytes, 10_485_760);
+        assert_eq!(memory.peak_bytes, 10_485_760);
+
+        let summary = memory.summary();
+        // Should show ~10240 KB
+        assert!(summary.contains("10240.00 KB"));
     }
 }

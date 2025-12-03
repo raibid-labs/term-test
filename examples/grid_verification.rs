@@ -26,8 +26,10 @@ fn main() {
     for col in 0..15 {
         if let Some(cell) = screen.get_cell(0, col) {
             if cell.c != ' ' {
-                println!("     Cell (0, {}): '{}' fg={:?} bg={:?} bold={} italic={} underline={}",
-                    col, cell.c, cell.fg, cell.bg, cell.bold, cell.italic, cell.underline);
+                println!(
+                    "     Cell (0, {}): '{}' fg={:?} bg={:?} bold={} italic={} underline={}",
+                    col, cell.c, cell.fg, cell.bg, cell.bold, cell.italic, cell.underline
+                );
             }
         }
     }
@@ -36,7 +38,8 @@ fn main() {
     println!("3. Row Iteration:");
     println!("   Using iter_rows():");
     for (row_idx, row) in screen.iter_rows().take(3).enumerate() {
-        let non_space_cells: Vec<_> = row.iter()
+        let non_space_cells: Vec<_> = row
+            .iter()
             .enumerate()
             .filter(|(_, cell)| cell.c != ' ')
             .take(5)
@@ -88,8 +91,10 @@ fn main() {
         for col in 0..screen.cols() {
             if let Some(cell) = screen.get_cell(row, col) {
                 if cell.c != ' ' && count < 20 {
-                    println!("     ({:2},{:2}): '{}' fg={:?} bg={:?}",
-                        row, col, cell.c, cell.fg, cell.bg);
+                    println!(
+                        "     ({:2},{:2}): '{}' fg={:?} bg={:?}",
+                        row, col, cell.c, cell.fg, cell.bg
+                    );
                     count += 1;
                     if count >= 20 {
                         break 'outer;
@@ -138,18 +143,20 @@ fn main() {
 
     println!("9. Advanced: Testing with Sixel Graphics:");
     let mut screen_sixel = ScreenState::new(80, 24);
-    screen_sixel.feed(b"\x1b[5;10H");           // Position cursor
-    screen_sixel.feed(b"\x1bPq");                // Start Sixel
-    screen_sixel.feed(b"\"1;1;100;50");          // Raster: 100x50 pixels
-    screen_sixel.feed(b"#0;2;100;100;100");      // Color definition
-    screen_sixel.feed(b"#0~");                   // Sixel data
-    screen_sixel.feed(b"\x1b\\");                // End Sixel
+    screen_sixel.feed(b"\x1b[5;10H"); // Position cursor
+    screen_sixel.feed(b"\x1bPq"); // Start Sixel
+    screen_sixel.feed(b"\"1;1;100;50"); // Raster: 100x50 pixels
+    screen_sixel.feed(b"#0;2;100;100;100"); // Color definition
+    screen_sixel.feed(b"#0~"); // Sixel data
+    screen_sixel.feed(b"\x1b\\"); // End Sixel
 
     let sixel_regions = screen_sixel.sixel_regions();
     println!("   Sixel regions detected: {}", sixel_regions.len());
     for (i, region) in sixel_regions.iter().enumerate() {
-        println!("     Region {}: position=({},{}), size={}x{} pixels",
-            i, region.start_row, region.start_col, region.width, region.height);
+        println!(
+            "     Region {}: position=({},{}), size={}x{} pixels",
+            i, region.start_row, region.start_col, region.width, region.height
+        );
     }
     println!();
 

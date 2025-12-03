@@ -3,8 +3,9 @@
 //! This example showcases all the new process management and I/O features
 //! added to the TestTerminal PTY wrapper.
 
-use portable_pty::CommandBuilder;
 use std::time::Duration;
+
+use portable_pty::CommandBuilder;
 use ratatui_testlib::TestTerminal;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -34,8 +35,7 @@ fn demo_custom_buffer() -> Result<(), Box<dyn std::error::Error>> {
     println!("Demo 1: Custom Buffer Configuration");
     println!("------------------------------------");
 
-    let _terminal = TestTerminal::new(80, 24)?
-        .with_buffer_size(16384);  // 16KB buffer for high-throughput
+    let _terminal = TestTerminal::new(80, 24)?.with_buffer_size(16384); // 16KB buffer for high-throughput
 
     println!("Created terminal with 16KB buffer");
     println!("Use larger buffers for applications with high output volume\n");

@@ -4,8 +4,8 @@
 
 #[cfg(feature = "bevy")]
 mod bevy_tests {
-    use ratatui_testlib::{BevyTuiTestHarness, Result};
     use bevy::prelude::*;
+    use ratatui_testlib::{BevyTuiTestHarness, Result};
 
     // ========================================================================
     // Test Components
@@ -81,8 +81,12 @@ mod bevy_tests {
         let mut harness = BevyTuiTestHarness::new()?;
 
         // Spawn entities with different markers
-        harness.world_mut().spawn((Position { x: 10, y: 20 }, EnemyMarker));
-        harness.world_mut().spawn((Position { x: 30, y: 40 }, EnemyMarker));
+        harness
+            .world_mut()
+            .spawn((Position { x: 10, y: 20 }, EnemyMarker));
+        harness
+            .world_mut()
+            .spawn((Position { x: 30, y: 40 }, EnemyMarker));
         harness.world_mut().spawn(Position { x: 5, y: 15 }); // No marker
 
         // Query only enemy positions
@@ -111,7 +115,9 @@ mod bevy_tests {
         let mut harness = BevyTuiTestHarness::new()?;
 
         // Should fail initially
-        assert!(harness.assert_component_exists::<CommandPaletteMarker>().is_err());
+        assert!(harness
+            .assert_component_exists::<CommandPaletteMarker>()
+            .is_err());
 
         // Spawn component
         harness.world_mut().spawn(CommandPaletteMarker);
@@ -161,10 +167,9 @@ mod bevy_tests {
         let mut harness = BevyTuiTestHarness::with_app(app)?;
 
         // Spawn entity with position and velocity
-        harness.world_mut().spawn((
-            Position { x: 0, y: 0 },
-            Velocity { dx: 5, dy: 10 },
-        ));
+        harness
+            .world_mut()
+            .spawn((Position { x: 0, y: 0 }, Velocity { dx: 5, dy: 10 }));
 
         // Initial position
         let positions = harness.query::<Position>();
@@ -214,7 +219,9 @@ mod bevy_tests {
         let mut harness = BevyTuiTestHarness::new()?;
 
         // Initially no command palette
-        assert!(harness.assert_component_exists::<CommandPaletteMarker>().is_err());
+        assert!(harness
+            .assert_component_exists::<CommandPaletteMarker>()
+            .is_err());
 
         // Simulate opening command palette
         harness.world_mut().spawn(CommandPaletteMarker);

@@ -38,8 +38,8 @@
 //! combines [`ScreenState`] with PTY management.
 //!
 //! ```rust,no_run
-//! use ratatui_testlib::TuiTestHarness;
 //! use portable_pty::CommandBuilder;
+//! use ratatui_testlib::TuiTestHarness;
 //!
 //! let mut harness = TuiTestHarness::new(80, 24)?;
 //! let cmd = CommandBuilder::new("my-tui-app");
@@ -69,7 +69,7 @@
 //! // - Sixel regions: oracle.sixel_regions()
 //! ```
 
-use vtparse::{VTActor, VTParser, CsiParam};
+use vtparse::{CsiParam, VTActor, VTParser};
 
 /// Represents a single terminal cell with character and attributes.
 ///
@@ -228,9 +228,10 @@ impl Rect {
 /// // After rendering a Sixel image...
 /// let regions = screen.sixel_regions();
 /// for region in regions {
-///     println!("Sixel at ({}, {}), size {}x{}",
-///         region.start_row, region.start_col,
-///         region.width, region.height);
+///     println!(
+///         "Sixel at ({}, {}), size {}x{}",
+///         region.start_row, region.start_col, region.width, region.height
+///     );
 /// }
 /// ```
 #[derive(Debug, Clone)]
@@ -275,8 +276,7 @@ pub struct SixelRegion {
 /// for row in 0..snapshot.height {
 ///     for col in 0..snapshot.width {
 ///         let cell = &snapshot.cells[row as usize][col as usize];
-///         println!("({}, {}): '{}' fg={:?} bg={:?}",
-///             row, col, cell.c, cell.fg, cell.bg);
+///         println!("({}, {}): '{}' fg={:?} bg={:?}", row, col, cell.c, cell.fg, cell.bg);
 ///     }
 /// }
 /// ```
@@ -394,10 +394,7 @@ impl TerminalState {
 
         // Parse semicolon-separated numeric parameters
         // Format: Pa;Pb;Ph;Pv where we need Ph (index 2) and Pv (index 3)
-        let parts: Vec<&str> = raster_part
-            .split(';')
-            .filter(|s| !s.is_empty())
-            .collect();
+        let parts: Vec<&str> = raster_part.split(';').filter(|s| !s.is_empty()).collect();
 
         // Handle different parameter counts:
         // - 4 params: Pan;Pad;Ph;Pv (full format)
@@ -546,62 +543,36 @@ impl VTActor for TerminalState {
                 // CUP - Cursor Position ESC [ row ; col H
                 // CSI uses 1-based indexing, convert to 0-based
                 // Filter out P variants (separators) and collect only integers
-                let integers: Vec<i64> = params
-                    .iter()
-                    .filter_map(|p| p.as_integer())
-                    .collect();
+                let integers: Vec<i64> = params.iter().filter_map(|p| p.as_integer()).collect();
 
-                let row = integers
-                    .get(0)
-                    .copied()
-                    .unwrap_or(1)
-                    .saturating_sub(1) as u16;
-                let col = integers
-                    .get(1)
-                    .copied()
-                    .unwrap_or(1)
-                    .saturating_sub(1) as u16;
+                let row = integers.get(0).copied().unwrap_or(1).saturating_sub(1) as u16;
+                let col = integers.get(1).copied().unwrap_or(1).saturating_sub(1) as u16;
 
                 self.move_cursor(row, col);
             }
             b'A' => {
                 // CUU - Cursor Up
-                let n = params
-                    .iter()
-                    .find_map(|p| p.as_integer())
-                    .unwrap_or(1) as u16;
+                let n = params.iter().find_map(|p| p.as_integer()).unwrap_or(1) as u16;
                 self.cursor_pos.0 = self.cursor_pos.0.saturating_sub(n);
             }
             b'B' => {
                 // CUD - Cursor Down
-                let n = params
-                    .iter()
-                    .find_map(|p| p.as_integer())
-                    .unwrap_or(1) as u16;
+                let n = params.iter().find_map(|p| p.as_integer()).unwrap_or(1) as u16;
                 self.cursor_pos.0 = (self.cursor_pos.0 + n).min(self.height - 1);
             }
             b'C' => {
                 // CUF - Cursor Forward
-                let n = params
-                    .iter()
-                    .find_map(|p| p.as_integer())
-                    .unwrap_or(1) as u16;
+                let n = params.iter().find_map(|p| p.as_integer()).unwrap_or(1) as u16;
                 self.cursor_pos.1 = (self.cursor_pos.1 + n).min(self.width - 1);
             }
             b'D' => {
                 // CUB - Cursor Back
-                let n = params
-                    .iter()
-                    .find_map(|p| p.as_integer())
-                    .unwrap_or(1) as u16;
+                let n = params.iter().find_map(|p| p.as_integer()).unwrap_or(1) as u16;
                 self.cursor_pos.1 = self.cursor_pos.1.saturating_sub(n);
             }
             b'm' => {
                 // SGR - Select Graphic Rendition (colors and attributes)
-                let integers: Vec<i64> = params
-                    .iter()
-                    .filter_map(|p| p.as_integer())
-                    .collect();
+                let integers: Vec<i64> = params.iter().filter_map(|p| p.as_integer()).collect();
 
                 // Handle empty params (reset)
                 if integers.is_empty() {
@@ -759,12 +730,7 @@ impl ScreenState {
         let parser = VTParser::new();
         let state = TerminalState::new(width, height);
 
-        Self {
-            parser,
-            state,
-            width,
-            height,
-        }
+        Self { parser, state, width, height }
     }
 
     /// Feeds data from the PTY to the parser.
@@ -842,7 +808,10 @@ impl ScreenState {
     /// The row contents as a string, or empty string if row is out of bounds.
     pub fn row_contents(&self, row: u16) -> String {
         if row < self.height {
-            self.state.cells[row as usize].iter().map(|cell| cell.c).collect()
+            self.state.cells[row as usize]
+                .iter()
+                .map(|cell| cell.c)
+                .collect()
         } else {
             String::new()
         }
@@ -993,7 +962,8 @@ impl ScreenState {
     /// screen.feed(b"\x1b[31mRed\x1b[32mGreen\x1b[34mBlue");
     ///
     /// // Use the iterator immediately to avoid lifetime issues
-    /// let colored_cells: Vec<_> = screen.iter_row(0)
+    /// let colored_cells: Vec<_> = screen
+    ///     .iter_row(0)
     ///     .unwrap()
     ///     .enumerate()
     ///     .filter(|(_, cell)| cell.fg.is_some())
@@ -1068,13 +1038,45 @@ impl ScreenState {
     ///
     /// let regions = screen.sixel_regions();
     /// for (i, region) in regions.iter().enumerate() {
-    ///     println!("Region {}: position ({}, {}), size {}x{}",
-    ///         i, region.start_row, region.start_col,
-    ///         region.width, region.height);
+    ///     println!(
+    ///         "Region {}: position ({}, {}), size {}x{}",
+    ///         i, region.start_row, region.start_col, region.width, region.height
+    ///     );
     /// }
     /// ```
     pub fn sixel_regions(&self) -> &[SixelRegion] {
         &self.state.sixel_regions
+    }
+
+    /// Returns a mutable reference to the Sixel regions.
+    ///
+    /// This is primarily intended for testing purposes, allowing tests to
+    /// inject mock Sixel data for memory profiling and other tests.
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to the vector of Sixel regions.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use ratatui_testlib::{ScreenState, screen::SixelRegion};
+    ///
+    /// let mut screen = ScreenState::new(80, 24);
+    ///
+    /// // Add a mock Sixel region for testing
+    /// screen.sixel_regions_mut().push(SixelRegion {
+    ///     start_row: 5,
+    ///     start_col: 10,
+    ///     width: 100,
+    ///     height: 50,
+    ///     data: vec![0u8; 1000],
+    /// });
+    ///
+    /// assert_eq!(screen.sixel_regions().len(), 1);
+    /// ```
+    pub fn sixel_regions_mut(&mut self) -> &mut Vec<SixelRegion> {
+        &mut self.state.sixel_regions
     }
 
     /// Checks if a Sixel region exists at the given position.
@@ -1099,19 +1101,20 @@ impl ScreenState {
     /// let mut screen = ScreenState::new(80, 24);
     ///
     /// // Render a Sixel at position (5, 10) - ESC[5;10H moves to row 5, col 10 (1-based)
-    /// screen.feed(b"\x1b[5;10H");           // Move cursor
-    /// screen.feed(b"\x1bPq");                // Start Sixel
-    /// screen.feed(b"\"1;1;100;50#0~");       // Raster + data
-    /// screen.feed(b"\x1b\\");                // End Sixel
+    /// screen.feed(b"\x1b[5;10H"); // Move cursor
+    /// screen.feed(b"\x1bPq"); // Start Sixel
+    /// screen.feed(b"\"1;1;100;50#0~"); // Raster + data
+    /// screen.feed(b"\x1b\\"); // End Sixel
     ///
     /// // Check for Sixel at 0-based coordinates (4, 9)
     /// assert!(screen.has_sixel_at(4, 9));
     /// assert!(!screen.has_sixel_at(0, 0));
     /// ```
     pub fn has_sixel_at(&self, row: u16, col: u16) -> bool {
-        self.state.sixel_regions.iter().any(|region| {
-            region.start_row == row && region.start_col == col
-        })
+        self.state
+            .sixel_regions
+            .iter()
+            .any(|region| region.start_row == row && region.start_col == col)
     }
 
     /// Returns the screen contents for debugging purposes.
@@ -1186,8 +1189,8 @@ mod tests {
         let (row, col) = screen.cursor_position();
 
         // CSI uses 1-based, we convert to 0-based
-        assert_eq!(row, 4);  // 5-1 = 4
-        assert_eq!(col, 9);  // 10-1 = 9
+        assert_eq!(row, 4); // 5-1 = 4
+        assert_eq!(col, 9); // 10-1 = 9
     }
 
     #[test]
@@ -1249,8 +1252,16 @@ mod tests {
 
         // Zero dimensions (invalid)
         assert_eq!(state.parse_raster_attributes(b"\"1;1;0;50"), None, "Should reject zero width");
-        assert_eq!(state.parse_raster_attributes(b"\"1;1;100;0"), None, "Should reject zero height");
-        assert_eq!(state.parse_raster_attributes(b"\"0;0"), None, "Should reject zero dimensions in abbreviated format");
+        assert_eq!(
+            state.parse_raster_attributes(b"\"1;1;100;0"),
+            None,
+            "Should reject zero height"
+        );
+        assert_eq!(
+            state.parse_raster_attributes(b"\"0;0"),
+            None,
+            "Should reject zero dimensions in abbreviated format"
+        );
 
         // Non-numeric values
         assert_eq!(state.parse_raster_attributes(b"\"abc;def"), None);
@@ -1303,12 +1314,12 @@ mod tests {
         let mut screen = ScreenState::new(80, 24);
 
         // Feed a complete Sixel sequence with raster attributes
-        screen.feed(b"\x1b[5;10H");           // Move cursor to (5, 10) [1-based]
-        screen.feed(b"\x1bPq");                // DCS - Start Sixel with 'q'
-        screen.feed(b"\"1;1;100;50");          // Raster attributes: 100x50 pixels
-        screen.feed(b"#0;2;100;100;100");      // Define color 0
-        screen.feed(b"#0~~@@");                // Some sixel data
-        screen.feed(b"\x1b\\");                // String terminator (ST)
+        screen.feed(b"\x1b[5;10H"); // Move cursor to (5, 10) [1-based]
+        screen.feed(b"\x1bPq"); // DCS - Start Sixel with 'q'
+        screen.feed(b"\"1;1;100;50"); // Raster attributes: 100x50 pixels
+        screen.feed(b"#0;2;100;100;100"); // Define color 0
+        screen.feed(b"#0~~@@"); // Some sixel data
+        screen.feed(b"\x1b\\"); // String terminator (ST)
 
         // Verify the Sixel region was captured
         let regions = screen.sixel_regions();

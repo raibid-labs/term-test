@@ -97,21 +97,22 @@ fn sixel_detection() {
     let mut screen = ScreenState::new(80, 24);
 
     // Position cursor and render a Sixel image
-    screen.feed(b"\x1b[10;20H");          // Move cursor to (10, 20)
-    screen.feed(b"\x1bPq");                // Start Sixel sequence
-    screen.feed(b"\"1;1;100;50");          // Raster attributes: 100x50 pixels
-    screen.feed(b"#0;2;100;100;100");      // Color definition
-    screen.feed(b"#0~");                   // Sixel data
-    screen.feed(b"\x1b\\");                // End Sixel sequence
+    screen.feed(b"\x1b[10;20H"); // Move cursor to (10, 20)
+    screen.feed(b"\x1bPq"); // Start Sixel sequence
+    screen.feed(b"\"1;1;100;50"); // Raster attributes: 100x50 pixels
+    screen.feed(b"#0;2;100;100;100"); // Color definition
+    screen.feed(b"#0~"); // Sixel data
+    screen.feed(b"\x1b\\"); // End Sixel sequence
 
     // Query Sixel regions
     let regions = screen.sixel_regions();
     println!("Detected {} Sixel region(s)", regions.len());
 
     for (i, region) in regions.iter().enumerate() {
-        println!("  Region {}: pos=({}, {}), size={}x{} pixels",
-            i, region.start_row, region.start_col,
-            region.width, region.height);
+        println!(
+            "  Region {}: pos=({}, {}), size={}x{} pixels",
+            i, region.start_row, region.start_col, region.width, region.height
+        );
     }
 
     // Check if Sixel exists at specific position

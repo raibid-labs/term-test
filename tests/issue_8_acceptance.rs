@@ -13,9 +13,7 @@ struct MockTerminalEmulator {
 
 impl MockTerminalEmulator {
     fn new(cols: u16, rows: u16) -> Self {
-        Self {
-            screen: ScreenState::new(cols, rows),
-        }
+        Self { screen: ScreenState::new(cols, rows) }
     }
 
     fn feed(&mut self, data: &[u8]) {
@@ -73,30 +71,20 @@ fn test_issue_8_exact_use_case() {
             let sut_cell = sut.get_cell(row, col).expect("SUT cell should exist");
 
             // Compare character
-            assert_eq!(
-                oracle_cell.c,
-                sut_cell.char,
-                "Character mismatch at ({}, {})",
-                row,
-                col
-            );
+            assert_eq!(oracle_cell.c, sut_cell.char, "Character mismatch at ({}, {})", row, col);
 
             // Compare foreground color
             assert_eq!(
-                oracle_cell.fg,
-                sut_cell.fg,
+                oracle_cell.fg, sut_cell.fg,
                 "Foreground color mismatch at ({}, {})",
-                row,
-                col
+                row, col
             );
 
             // Compare background color
             assert_eq!(
-                oracle_cell.bg,
-                sut_cell.bg,
+                oracle_cell.bg, sut_cell.bg,
                 "Background color mismatch at ({}, {})",
-                row,
-                col
+                row, col
             );
         }
     }
@@ -173,11 +161,7 @@ fn test_issue_8_iterator_support() {
     assert_eq!(row_count, 3);
 
     // Test iter_row()
-    let first_row: Vec<_> = screen
-        .iter_row(0)
-        .expect("Row 0 exists")
-        .take(3)
-        .collect();
+    let first_row: Vec<_> = screen.iter_row(0).expect("Row 0 exists").take(3).collect();
     assert_eq!(first_row.len(), 3);
     assert_eq!(first_row[0].c, 'A');
     assert_eq!(first_row[1].c, 'B');

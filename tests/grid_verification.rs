@@ -319,13 +319,7 @@ fn test_grid_iteration_pattern() {
         for col in 0..screen.cols() {
             let cell = screen.get_cell(row, col).expect("Cell should exist");
             if cell.c != ' ' {
-                cells_inspected.push((
-                    row,
-                    col,
-                    cell.c,
-                    cell.fg,
-                    cell.bg,
-                ));
+                cells_inspected.push((row, col, cell.c, cell.fg, cell.bg));
             }
         }
     }

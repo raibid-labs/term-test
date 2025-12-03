@@ -24,7 +24,7 @@
 //! ```rust
 //! # #[cfg(feature = "sixel")]
 //! # {
-//! use ratatui_testlib::{TuiTestHarness, ScreenState};
+//! use ratatui_testlib::{ScreenState, TuiTestHarness};
 //!
 //! # fn test_sixel() -> ratatui_testlib::Result<()> {
 //! let mut harness = TuiTestHarness::new(80, 24)?;
@@ -38,10 +38,15 @@
 //! for region in regions {
 //!     let within_bounds = region.start_row >= preview_area.0
 //!         && region.start_col >= preview_area.1
-//!         && (region.start_row as u32 + region.height / 6) <= (preview_area.0 as u32 + preview_area.3 as u32)
-//!         && (region.start_col as u32 + region.width / 8) <= (preview_area.1 as u32 + preview_area.2 as u32);
-//!     assert!(within_bounds, "Sixel at ({}, {}) is outside preview area",
-//!         region.start_row, region.start_col);
+//!         && (region.start_row as u32 + region.height / 6)
+//!             <= (preview_area.0 as u32 + preview_area.3 as u32)
+//!         && (region.start_col as u32 + region.width / 8)
+//!             <= (preview_area.1 as u32 + preview_area.2 as u32);
+//!     assert!(
+//!         within_bounds,
+//!         "Sixel at ({}, {}) is outside preview area",
+//!         region.start_row, region.start_col
+//!     );
 //! }
 //! # Ok(())
 //! # }
@@ -95,11 +100,7 @@ impl SixelSequence {
     /// * `position` - Cursor position when rendered
     /// * `bounds` - Bounding rectangle (row, col, width, height)
     pub fn new(raw: Vec<u8>, position: (u16, u16), bounds: (u16, u16, u16, u16)) -> Self {
-        Self {
-            raw,
-            position,
-            bounds,
-        }
+        Self { raw, position, bounds }
     }
 
     /// Checks if this Sixel is completely within the specified area.
@@ -190,8 +191,7 @@ impl SixelSequence {
 /// ```rust
 /// # #[cfg(feature = "sixel")]
 /// # {
-/// use ratatui_testlib::sixel::SixelCapture;
-/// use ratatui_testlib::ScreenState;
+/// use ratatui_testlib::{sixel::SixelCapture, ScreenState};
 ///
 /// # fn test() -> ratatui_testlib::Result<()> {
 /// let screen = ScreenState::new(80, 24);
@@ -226,9 +226,7 @@ impl SixelCapture {
     /// assert!(capture.is_empty());
     /// ```
     pub fn new() -> Self {
-        Self {
-            sequences: Vec::new(),
-        }
+        Self { sequences: Vec::new() }
     }
 
     /// Creates a Sixel capture from raw terminal output.
@@ -264,7 +262,8 @@ impl SixelCapture {
     pub fn from_screen_state(screen: &crate::screen::ScreenState) -> Self {
         use crate::screen::SixelRegion;
 
-        let sequences = screen.sixel_regions()
+        let sequences = screen
+            .sixel_regions()
             .iter()
             .map(|region: &SixelRegion| {
                 // Convert pixel dimensions to terminal cells
@@ -431,8 +430,7 @@ impl SixelCapture {
     /// # Example
     ///
     /// ```rust
-    /// use ratatui_testlib::sixel::SixelCapture;
-    /// use ratatui_testlib::ScreenState;
+    /// use ratatui_testlib::{sixel::SixelCapture, ScreenState};
     ///
     /// let screen1 = ScreenState::new(80, 24);
     /// let capture1 = SixelCapture::from_screen_state(&screen1);
@@ -487,8 +485,12 @@ mod tests {
     #[test]
     fn test_sixel_capture_filtering() {
         let mut capture = SixelCapture::new();
-        capture.sequences.push(SixelSequence::new(vec![], (5, 5), (5, 5, 10, 10)));
-        capture.sequences.push(SixelSequence::new(vec![], (20, 20), (20, 20, 10, 10)));
+        capture
+            .sequences
+            .push(SixelSequence::new(vec![], (5, 5), (5, 5, 10, 10)));
+        capture
+            .sequences
+            .push(SixelSequence::new(vec![], (20, 20), (20, 20, 10, 10)));
 
         let area = (0, 0, 15, 15);
         assert_eq!(capture.sequences_in_area(area).len(), 1);
