@@ -19,6 +19,28 @@
 //! - [`SixelSequence`]: Represents a single Sixel graphic with position/bounds
 //! - [`SixelCapture`]: Collection of captured Sixel sequences with query methods
 //!
+//! # Migration to Graphics Module
+//!
+//! This module now re-exports the unified graphics API from [`crate::graphics`].
+//! The new graphics module supports multiple protocols (Sixel, Kitty, iTerm2)
+//! with a consistent API. For backwards compatibility, this module maintains
+//! the original Sixel-specific types.
+//!
+//! To use the unified API:
+//! ```rust
+//! # #[cfg(feature = "sixel")]
+//! # {
+//! use ratatui_testlib::graphics::{GraphicsCapture, GraphicsProtocol};
+//!
+//! # fn example() -> ratatui_testlib::Result<()> {
+//! # let screen = ratatui_testlib::ScreenState::new(80, 24);
+//! let capture = GraphicsCapture::from_screen_state(&screen);
+//! let sixel_regions = capture.by_protocol(GraphicsProtocol::Sixel);
+//! # Ok(())
+//! # }
+//! # }
+//! ```
+//!
 //! # Example
 //!
 //! ```rust
@@ -54,6 +76,7 @@
 //! ```
 
 use crate::error::{Result, TermTestError};
+use crate::graphics::{GraphicsCapture as UnifiedGraphicsCapture, GraphicsProtocol, GraphicsRegion};
 
 /// Represents a captured Sixel sequence with position information.
 ///
@@ -260,33 +283,16 @@ impl SixelCapture {
     ///
     /// * `screen` - Reference to the ScreenState containing Sixel information
     pub fn from_screen_state(screen: &crate::screen::ScreenState) -> Self {
-        use crate::screen::SixelRegion;
-
-        let sequences = screen
-            .sixel_regions()
+        // Use the unified graphics capture and filter for Sixel
+        let unified = UnifiedGraphicsCapture::from_screen_state(screen);
+        let sequences = unified
+            .by_protocol(GraphicsProtocol::Sixel)
             .iter()
-            .map(|region: &SixelRegion| {
-                // Convert pixel dimensions to terminal cells
-                // Standard Sixel-to-cell conversion: 8 pixels/col, 6 pixels/row
-                const PIXELS_PER_COL: u32 = 8;
-                const PIXELS_PER_ROW: u32 = 6;
-
-                let width_cells = if region.width > 0 {
-                    ((region.width + PIXELS_PER_COL - 1) / PIXELS_PER_COL) as u16
-                } else {
-                    0
-                };
-
-                let height_cells = if region.height > 0 {
-                    ((region.height + PIXELS_PER_ROW - 1) / PIXELS_PER_ROW) as u16
-                } else {
-                    0
-                };
-
+            .map(|region: &&GraphicsRegion| {
                 SixelSequence::new(
-                    region.data.clone(),
-                    (region.start_row, region.start_col),
-                    (region.start_row, region.start_col, width_cells, height_cells),
+                    region.raw_data.clone(),
+                    region.position,
+                    region.bounds,
                 )
             })
             .collect();

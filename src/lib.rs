@@ -93,6 +93,38 @@
 //! # }
 //! ```
 //!
+//! ## Testing with Shared Memory State
+//!
+//! With the `shared-state` feature, you can access memory-mapped shared state:
+//!
+//! ```rust,no_run
+//! # #[cfg(all(feature = "bevy", feature = "shared-state"))]
+//! # {
+//! use ratatui_testlib::BevyTuiTestHarness;
+//! use ratatui_testlib::shared_state::{MemoryMappedState, SharedStateAccess};
+//! use serde::{Deserialize, Serialize};
+//!
+//! #[derive(Debug, Clone, Serialize, Deserialize)]
+//! struct AppState {
+//!     frame_count: u32,
+//!     status: String,
+//! }
+//!
+//! # fn test() -> ratatui_testlib::Result<()> {
+//! let harness = BevyTuiTestHarness::new()?
+//!     .with_shared_state("/tmp/app_state.mmap")?;
+//!
+//! // Access shared state for assertions
+//! if let Some(path) = harness.shared_state_path() {
+//!     let state = MemoryMappedState::<AppState>::open(path)?;
+//!     let app_state = state.read()?;
+//!     assert!(app_state.frame_count > 0);
+//! }
+//! # Ok(())
+//! # }
+//! # }
+//! ```
+//!
 //! ## Feature Flags
 //!
 //! - `async-tokio`: Enable Tokio async runtime support
@@ -102,6 +134,7 @@
 //! - `sixel`: Enable Sixel graphics position tracking and testing
 //! - `snapshot-insta`: Enable snapshot testing with `insta`
 //! - `headless`: Enable headless mode for CI/CD (no display server required)
+//! - `shared-state`: Enable memory-mapped shared state access for testing
 //! - `mvp`: Enable all MVP features (recommended for dgx-pixels)
 //!
 //! ### Headless Mode for CI/CD
@@ -157,12 +190,19 @@ pub mod parallel;
 mod pty;
 mod screen;
 pub mod terminal_profiles;
+pub mod timing;
+
+#[cfg(feature = "sixel")]
+pub mod graphics;
 
 #[cfg(feature = "sixel")]
 pub mod sixel;
 
 #[cfg(feature = "bevy")]
 pub mod bevy;
+
+#[cfg(feature = "shared-state")]
+pub mod shared_state;
 
 // Public API exports
 pub use error::{Result, TermTestError};
@@ -173,7 +213,7 @@ pub use parallel::{
     IsolatedTerminal, PoolConfig, PoolStats, TerminalGuard, TerminalId, TerminalPool, TestContext,
 };
 pub use pty::TestTerminal;
-pub use screen::{Cell, GridSnapshot, Rect, ScreenState, SixelRegion};
+pub use screen::{Cell, GridSnapshot, ITerm2Region, KittyRegion, Rect, ScreenState, SixelRegion};
 pub use terminal_profiles::{
     ColorDepth, Feature, MouseProtocol, TerminalCapabilities, TerminalProfile,
 };
@@ -197,8 +237,10 @@ pub type Parser = ScreenState;
 #[cfg(all(feature = "bevy", feature = "snapshot-insta"))]
 pub use bevy::ComponentSnapshot;
 #[cfg(feature = "bevy")]
-pub use bevy::{BevyTuiTestHarness, HeadlessBevyRunner};
+pub use bevy::{BevyTuiTestHarness, HeadlessBevyRunner, HybridBevyHarness, HybridBevyHarnessBuilder};
 // Re-export commonly used types for convenience
 pub use portable_pty::CommandBuilder;
+#[cfg(feature = "sixel")]
+pub use graphics::{GraphicsCapture, GraphicsProtocol, GraphicsRegion};
 #[cfg(feature = "sixel")]
 pub use sixel::{SixelCapture, SixelSequence};

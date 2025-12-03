@@ -54,6 +54,7 @@ use crate::{
     pty::TestTerminal,
     screen::ScreenState,
     terminal_profiles::{Feature, TerminalCapabilities, TerminalProfile},
+    timing::{fps_to_frame_budget, LatencyProfile, TimingHooks, TimingRecorder},
 };
 
 /// Default timeout for wait operations (5 seconds).
@@ -246,6 +247,9 @@ pub struct TuiTestHarness {
     verbose: bool,
     // Terminal profile configuration
     terminal_profile: TerminalProfile,
+    // Timing and latency profiling
+    timing_recorder: TimingRecorder,
+    latency_profile: LatencyProfile,
 }
 
 impl TuiTestHarness {
@@ -275,6 +279,8 @@ impl TuiTestHarness {
             recording_start: None,
             verbose: false,
             terminal_profile: TerminalProfile::default(),
+            timing_recorder: TimingRecorder::new(),
+            latency_profile: LatencyProfile::new(),
         })
     }
 
@@ -486,12 +492,23 @@ impl TuiTestHarness {
     ///
     /// Returns an error if the write fails.
     pub fn send_text(&mut self, text: &str) -> Result<()> {
+        // Record input timestamp for latency profiling
+        self.timing_recorder.record_event("input_sent");
+        self.latency_profile.mark_input();
+
         let bytes = text.as_bytes();
         self.record_input(bytes);
         self.terminal.write(bytes)?;
+
         // Update state, ignoring ProcessExited since the process might exit
         // after receiving input (e.g., sending 'q' to quit)
         let _ = self.update_state();
+
+        // Record render completion
+        self.timing_recorder.record_event("render_complete");
+        self.latency_profile.mark_render_end();
+        self.latency_profile.mark_frame_ready();
+
         Ok(())
     }
 
@@ -735,6 +752,10 @@ impl TuiTestHarness {
     /// This encodes the key event to bytes, writes to the PTY, adds a small
     /// delay for the application to process the input, and updates the screen state.
     fn send_key_event(&mut self, event: KeyEvent) -> Result<()> {
+        // Record input timestamp for latency profiling
+        self.timing_recorder.record_event("input_sent");
+        self.latency_profile.mark_input();
+
         let bytes = encode_key_event(&event);
         self.record_input(&bytes);
         self.terminal.write_all(&bytes)?;
@@ -750,6 +771,12 @@ impl TuiTestHarness {
         // Update state, ignoring ProcessExited since the process might exit
         // after receiving input (e.g., pressing 'q' to quit)
         let _ = self.update_state();
+
+        // Record render completion
+        self.timing_recorder.record_event("render_complete");
+        self.latency_profile.mark_render_end();
+        self.latency_profile.mark_frame_ready();
+
         Ok(())
     }
 
@@ -2574,6 +2601,179 @@ impl TuiTestHarness {
     pub fn parallel_harness_builder() -> TuiTestHarnessBuilder {
         TuiTestHarnessBuilder::default()
     }
+
+    /// Measures the input-to-render latency from the most recent input event.
+    ///
+    /// This returns the time from when input was sent to when rendering completed.
+    ///
+    /// # Returns
+    ///
+    /// `Some(Duration)` if both input and render timestamps are recorded, `None` otherwise.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use ratatui_testlib::TuiTestHarness;
+    /// use std::time::Duration;
+    ///
+    /// # fn test() -> ratatui_testlib::Result<()> {
+    /// let mut harness = TuiTestHarness::new(80, 24)?;
+    /// harness.send_text("hello")?;
+    ///
+    /// let latency = harness.measure_input_to_render_latency();
+    /// if let Some(latency) = latency {
+    ///     println!("Input→Render latency: {:.2}ms", latency.as_secs_f64() * 1000.0);
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn measure_input_to_render_latency(&self) -> Option<Duration> {
+        self.latency_profile.input_to_render()
+    }
+
+    /// Asserts that input-to-render latency is within the specified budget.
+    ///
+    /// Uses the most recent input→render timing for the assertion.
+    ///
+    /// # Arguments
+    ///
+    /// * `budget` - Maximum allowed latency
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - No timing data is available
+    /// - The latency exceeds the budget
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use ratatui_testlib::TuiTestHarness;
+    /// use std::time::Duration;
+    ///
+    /// # fn test() -> ratatui_testlib::Result<()> {
+    /// let mut harness = TuiTestHarness::new(80, 24)?;
+    /// harness.send_text("hello")?;
+    ///
+    /// // Assert input→render completes within 16.67ms (60 FPS)
+    /// harness.assert_input_latency_within(Duration::from_micros(16670))?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn assert_input_latency_within(&self, budget: Duration) -> Result<()> {
+        let latency = self.latency_profile.input_to_render().ok_or_else(|| {
+            TermTestError::Timing(
+                "Cannot measure input latency: no input or render events recorded".to_string(),
+            )
+        })?;
+
+        if latency > budget {
+            return Err(TermTestError::Timing(format!(
+                "Input latency exceeded budget: {:.3}ms > {:.3}ms",
+                latency.as_secs_f64() * 1000.0,
+                budget.as_secs_f64() * 1000.0
+            )));
+        }
+
+        Ok(())
+    }
+
+    /// Asserts that rendering meets a target FPS budget.
+    ///
+    /// This calculates the frame time budget from the target FPS and asserts
+    /// that input→render latency is within that budget.
+    ///
+    /// # Arguments
+    ///
+    /// * `fps_target` - Target frames per second (e.g., 60.0 for 60 FPS)
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - No timing data is available
+    /// - The latency exceeds the FPS budget
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use ratatui_testlib::TuiTestHarness;
+    ///
+    /// # fn test() -> ratatui_testlib::Result<()> {
+    /// let mut harness = TuiTestHarness::new(80, 24)?;
+    /// harness.send_text("hello")?;
+    ///
+    /// // Assert rendering meets 60 FPS target (16.67ms per frame)
+    /// harness.assert_render_budget(60.0)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn assert_render_budget(&self, fps_target: f64) -> Result<()> {
+        let budget = fps_to_frame_budget(fps_target);
+        self.assert_input_latency_within(budget)
+    }
+
+    /// Resets all timing data.
+    ///
+    /// This clears the timing recorder and latency profile, useful for
+    /// starting fresh measurements after warm-up operations.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use ratatui_testlib::TuiTestHarness;
+    ///
+    /// # fn test() -> ratatui_testlib::Result<()> {
+    /// let mut harness = TuiTestHarness::new(80, 24)?;
+    ///
+    /// // Warm-up
+    /// harness.send_text("hello")?;
+    ///
+    /// // Reset timing data before real measurements
+    /// harness.reset_timing();
+    ///
+    /// // Now measure actual performance
+    /// harness.send_text("world")?;
+    /// harness.assert_render_budget(60.0)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn reset_timing(&mut self) {
+        self.timing_recorder.reset();
+        self.latency_profile.reset();
+    }
+
+    /// Gets a reference to the latency profile for detailed analysis.
+    ///
+    /// # Returns
+    ///
+    /// A reference to the [`LatencyProfile`] for this harness.
+    pub fn latency_profile(&self) -> &LatencyProfile {
+        &self.latency_profile
+    }
+}
+
+/// Implementation of `TimingHooks` trait for `TuiTestHarness`.
+impl TimingHooks for TuiTestHarness {
+    fn record_event(&mut self, event_name: &str) {
+        self.timing_recorder.record_event(event_name);
+    }
+
+    fn measure_latency(&self, start_event: &str, end_event: &str) -> Option<Duration> {
+        self.timing_recorder.measure_latency(start_event, end_event)
+    }
+
+    fn get_timings(&self) -> &TimingRecorder {
+        &self.timing_recorder
+    }
+
+    fn assert_latency_within(
+        &self,
+        start_event: &str,
+        end_event: &str,
+        budget: Duration,
+    ) -> Result<()> {
+        self.timing_recorder.assert_latency_within(start_event, end_event, budget)
+    }
 }
 
 /// Builder for configuring a `TuiTestHarness`.
@@ -2690,6 +2890,8 @@ impl TuiTestHarnessBuilder {
             recording_start: None,
             verbose: false,
             terminal_profile: self.terminal_profile,
+            timing_recorder: TimingRecorder::new(),
+            latency_profile: LatencyProfile::new(),
         })
     }
 }

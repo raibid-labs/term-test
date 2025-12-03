@@ -37,6 +37,10 @@ async-std = { version = "1.12", optional = true }
 expect-test = { version = "1.4", optional = true }
 image = { version = "0.25", optional = true }
 
+# Shared state dependencies
+memmap2 = { version = "0.9", optional = true }
+bincode = { version = "1.3", optional = true }
+
 [dev-dependencies]
 tokio-test = "0.4"
 tempfile = "3.8"
@@ -67,6 +71,7 @@ mvp = [
 async-async-std = ["async-std"]
 snapshot-expect = ["expect-test"]
 sixel-image = ["image"]  # Advanced Sixel decoding
+shared-state = ["memmap2", "bincode", "serde"]  # Shared memory state access
 
 # Full bundle (all features)
 full = [
@@ -74,6 +79,7 @@ full = [
     "async-async-std",
     "snapshot-expect",
     "sixel-image",
+    "shared-state",
 ]
 
 [[example]]
@@ -119,6 +125,30 @@ required-features = ["bevy"]
 name = "terminal_profiles_demo"
 path = "examples/terminal_profiles_demo.rs"
 required-features = ["sixel"]
+
+[[example]]
+name = "shared_state_test"
+path = "examples/shared_state_test.rs"
+required-features = ["shared-state"]
+
+[[example]]
+name = "headless_ci_example"
+path = "examples/headless_ci_example.rs"
+required-features = ["bevy", "sixel"]
+
+[[example]]
+name = "hybrid_bevy_client_daemon"
+path = "examples/hybrid_bevy_client_daemon.rs"
+required-features = ["bevy"]
+
+[[example]]
+name = "graphics_detection"
+path = "examples/graphics_detection.rs"
+required-features = ["sixel"]
+
+[[example]]
+name = "timing_demo"
+path = "examples/timing_demo.rs"
 
 [profile.dev]
 opt-level = 0

@@ -194,12 +194,44 @@ pub enum TermTestError {
     #[cfg(feature = "bevy")]
     #[error("Bevy error: {0}")]
     Bevy(String),
+
+    /// Timing or latency measurement error.
+    ///
+    /// This error occurs when timing measurements fail, such as:
+    /// - Missing timing events for latency calculation
+    /// - Latency budget violations
+    /// - Invalid timing configurations
+    ///
+    /// Used by the timing infrastructure to validate performance requirements.
+    #[error("Timing error: {0}")]
+    Timing(String),
+
+    /// Shared state access error.
+    ///
+    /// This error occurs when using the `shared-state` feature for
+    /// memory-mapped shared state access, such as:
+    /// - Memory mapping failures
+    /// - State deserialization errors
+    /// - Timeout waiting for state conditions
+    ///
+    /// Requires the `shared-state` feature flag.
+    #[cfg(feature = "shared-state")]
+    #[error("Shared state error: {0}")]
+    SharedState(String),
 }
 
 // Conversion from anyhow::Error (used by portable-pty)
 impl From<anyhow::Error> for TermTestError {
     fn from(err: anyhow::Error) -> Self {
         TermTestError::Pty(err.to_string())
+    }
+}
+
+// Conversion from SharedStateError
+#[cfg(feature = "shared-state")]
+impl From<crate::shared_state::SharedStateError> for TermTestError {
+    fn from(err: crate::shared_state::SharedStateError) -> Self {
+        TermTestError::SharedState(err.to_string())
     }
 }
 

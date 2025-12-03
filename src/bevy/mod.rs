@@ -1,6 +1,6 @@
 //! Bevy ECS integration for testing Bevy-based TUI applications.
 //!
-//! This module provides two test harnesses for different testing scenarios:
+//! This module provides three test harnesses for different testing scenarios:
 //!
 //! ## PTY-Based Testing: [`BevyTuiTestHarness`]
 //!
@@ -12,6 +12,12 @@
 //! Runs Bevy schedules in-process without spawning a PTY, using `MinimalPlugins`
 //! and `ScheduleRunnerPlugin`. Ideal for CI/CD environments, fast unit tests,
 //! and deterministic frame-by-frame execution.
+//!
+//! ## Hybrid Testing: [`HybridBevyHarness`]
+//!
+//! Combines in-process Bevy ECS testing with an optional PTY-backed daemon process.
+//! Perfect for testing client-server architectures where a Bevy client communicates
+//! with a daemon process. Provides access to both ECS state and daemon terminal output.
 //!
 //! # Overview
 //!
@@ -83,9 +89,11 @@
 // Submodules
 pub mod bench;
 pub mod headless;
+pub mod hybrid;
 
 // Re-exports
 pub use bench::{BenchmarkResults, BenchmarkableHarness, ProfileResults};
+pub use hybrid::{HybridBevyHarness, HybridBevyHarnessBuilder};
 // Bevy ECS imports
 use bevy::app::App;
 use bevy::{
@@ -253,6 +261,8 @@ pub struct BevyTuiTestHarness {
     harness: TuiTestHarness,
     is_headless: bool,
     app: App,
+    #[cfg(feature = "shared-state")]
+    shared_state_path: Option<String>,
 }
 
 impl BevyTuiTestHarness {
@@ -310,7 +320,13 @@ impl BevyTuiTestHarness {
             app.add_plugins(MinimalPlugins);
         }
 
-        Ok(Self { harness, is_headless, app })
+        Ok(Self {
+            harness,
+            is_headless,
+            app,
+            #[cfg(feature = "shared-state")]
+            shared_state_path: None,
+        })
     }
 
     /// Creates a Bevy TUI test harness with bevy_ratatui plugin.
@@ -371,7 +387,13 @@ impl BevyTuiTestHarness {
         #[cfg(not(feature = "headless"))]
         let is_headless = false;
 
-        Ok(Self { harness, is_headless, app })
+        Ok(Self {
+            harness,
+            is_headless,
+            app,
+            #[cfg(feature = "shared-state")]
+            shared_state_path: None,
+        })
     }
 
     /// Runs one Bevy frame update.
@@ -944,6 +966,86 @@ impl BevyTuiTestHarness {
     /// ```
     pub fn is_headless(&self) -> bool {
         self.is_headless
+    }
+
+    /// Configures shared state access for this harness.
+    ///
+    /// This method sets up memory-mapped shared state access, allowing tests to
+    /// inspect application state that's been written to a shared memory file.
+    /// Useful for testing applications that expose state via protocols like
+    /// scarab-protocol.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Path to the memory-mapped shared state file
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the harness cannot be configured.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # #[cfg(all(feature = "bevy", feature = "shared-state"))]
+    /// # {
+    /// use ratatui_testlib::BevyTuiTestHarness;
+    ///
+    /// # fn test() -> ratatui_testlib::Result<()> {
+    /// let mut harness = BevyTuiTestHarness::new()?
+    ///     .with_shared_state("/tmp/tui_state.mmap")?;
+    ///
+    /// // Now you can access shared state in tests
+    /// harness.update_n(10)?;
+    /// # Ok(())
+    /// # }
+    /// # }
+    /// ```
+    #[cfg(feature = "shared-state")]
+    pub fn with_shared_state(mut self, path: impl Into<String>) -> Result<Self> {
+        self.shared_state_path = Some(path.into());
+        Ok(self)
+    }
+
+    /// Returns the shared state path if configured.
+    ///
+    /// This provides access to the path of the memory-mapped shared state file,
+    /// allowing tests to create their own [`MemoryMappedState`] instances for
+    /// custom state types.
+    ///
+    /// # Returns
+    ///
+    /// `Some(path)` if shared state was configured, `None` otherwise.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # #[cfg(all(feature = "bevy", feature = "shared-state"))]
+    /// # {
+    /// use ratatui_testlib::BevyTuiTestHarness;
+    /// use ratatui_testlib::shared_state::{MemoryMappedState, SharedStateAccess};
+    /// use serde::{Deserialize, Serialize};
+    ///
+    /// #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// struct GameState {
+    ///     score: u32,
+    /// }
+    ///
+    /// # fn test() -> ratatui_testlib::Result<()> {
+    /// let harness = BevyTuiTestHarness::new()?
+    ///     .with_shared_state("/tmp/game.mmap")?;
+    ///
+    /// if let Some(path) = harness.shared_state_path() {
+    ///     let state = MemoryMappedState::<GameState>::open(path)?;
+    ///     let game = state.read()?;
+    ///     assert_eq!(game.score, 100);
+    /// }
+    /// # Ok(())
+    /// # }
+    /// # }
+    /// ```
+    #[cfg(feature = "shared-state")]
+    pub fn shared_state_path(&self) -> Option<&str> {
+        self.shared_state_path.as_deref()
     }
 
     /// Returns the current screen state.

@@ -248,6 +248,58 @@ pub struct SixelRegion {
     pub data: Vec<u8>,
 }
 
+/// Represents a Kitty graphics region in the terminal.
+///
+/// Kitty graphics protocol is an advanced protocol that supports various
+/// image formats and transmission methods.
+///
+/// # Fields
+///
+/// - `start_row`: The row where the graphic begins (0-indexed)
+/// - `start_col`: The column where the graphic begins (0-indexed)
+/// - `width`: Width in pixels (if known from control data)
+/// - `height`: Height in pixels (if known from control data)
+/// - `data`: The raw APC escape sequence data
+#[derive(Debug, Clone)]
+pub struct KittyRegion {
+    /// Starting row (0-indexed).
+    pub start_row: u16,
+    /// Starting column (0-indexed).
+    pub start_col: u16,
+    /// Width in pixels.
+    pub width: u32,
+    /// Height in pixels.
+    pub height: u32,
+    /// Raw Kitty graphics escape sequence data.
+    pub data: Vec<u8>,
+}
+
+/// Represents an iTerm2 inline image region in the terminal.
+///
+/// iTerm2 inline images use OSC 1337;File= sequences to embed
+/// base64-encoded images directly in terminal output.
+///
+/// # Fields
+///
+/// - `start_row`: The row where the image begins (0-indexed)
+/// - `start_col`: The column where the image begins (0-indexed)
+/// - `width`: Width in cells (if specified in params)
+/// - `height`: Height in cells (if specified in params)
+/// - `data`: The raw OSC escape sequence data
+#[derive(Debug, Clone)]
+pub struct ITerm2Region {
+    /// Starting row (0-indexed).
+    pub start_row: u16,
+    /// Starting column (0-indexed).
+    pub start_col: u16,
+    /// Width in cells.
+    pub width: u32,
+    /// Height in cells.
+    pub height: u32,
+    /// Raw iTerm2 inline image escape sequence data.
+    pub data: Vec<u8>,
+}
+
 /// A complete snapshot of the terminal screen grid state.
 ///
 /// This structure provides a point-in-time capture of the entire screen state,
@@ -294,13 +346,25 @@ pub struct GridSnapshot {
 
 /// Terminal state tracking for vtparse parser.
 ///
-/// Implements VTActor to handle escape sequences including DCS for Sixel.
+/// Implements VTActor to handle escape sequences including DCS for Sixel,
+/// APC for Kitty graphics, and OSC for iTerm2 inline images.
 struct TerminalState {
     cursor_pos: (u16, u16),
     sixel_regions: Vec<SixelRegion>,
     current_sixel_data: Vec<u8>,
     current_sixel_params: Vec<i64>,
     in_sixel_mode: bool,
+
+    // Kitty graphics protocol state
+    kitty_regions: Vec<KittyRegion>,
+    current_kitty_data: Vec<u8>,
+    in_kitty_mode: bool,
+
+    // iTerm2 inline images state
+    iterm2_regions: Vec<ITerm2Region>,
+    current_iterm2_data: Vec<u8>,
+    in_iterm2_mode: bool,
+
     width: u16,
     height: u16,
     cells: Vec<Vec<Cell>>,
@@ -322,6 +386,12 @@ impl TerminalState {
             current_sixel_data: Vec::new(),
             current_sixel_params: Vec::new(),
             in_sixel_mode: false,
+            kitty_regions: Vec::new(),
+            current_kitty_data: Vec::new(),
+            in_kitty_mode: false,
+            iterm2_regions: Vec::new(),
+            current_iterm2_data: Vec::new(),
+            in_iterm2_mode: false,
             width,
             height,
             cells,
@@ -465,6 +535,93 @@ impl TerminalState {
         };
 
         (cols, rows)
+    }
+
+    /// Parse Kitty graphics control data to extract dimensions.
+    ///
+    /// Kitty graphics protocol uses key-value pairs like:
+    /// - `w=<width>` - width in pixels
+    /// - `h=<height>` - height in pixels
+    /// - `c=<cols>` - width in terminal cells
+    /// - `r=<rows>` - height in terminal cells
+    ///
+    /// # Arguments
+    ///
+    /// * `data` - Raw Kitty graphics control data
+    ///
+    /// # Returns
+    ///
+    /// `Some((width, height))` in pixels if dimensions are found, `None` otherwise.
+    fn parse_kitty_dimensions(&self, data: &[u8]) -> Option<(u32, u32)> {
+        let data_str = std::str::from_utf8(data).ok()?;
+
+        let mut width = None;
+        let mut height = None;
+
+        // Parse key-value pairs separated by commas or semicolons
+        for part in data_str.split(|c| c == ',' || c == ';') {
+            if let Some((key, value)) = part.split_once('=') {
+                match key.trim() {
+                    "w" => width = value.trim().parse::<u32>().ok(),
+                    "h" => height = value.trim().parse::<u32>().ok(),
+                    _ => {}
+                }
+            }
+        }
+
+        match (width, height) {
+            (Some(w), Some(h)) if w > 0 && h > 0 => Some((w, h)),
+            _ => None,
+        }
+    }
+
+    /// Parse iTerm2 inline image parameters to extract dimensions.
+    ///
+    /// iTerm2 uses parameters like:
+    /// - `width=<n>` or `width=<n>px` - width in pixels
+    /// - `height=<n>` or `height=<n>px` - height in pixels
+    /// - `width=auto` or `height=auto` - automatic sizing
+    ///
+    /// # Arguments
+    ///
+    /// * `data` - Raw iTerm2 parameter data (before the base64 payload)
+    ///
+    /// # Returns
+    ///
+    /// `Some((width, height))` in cells if dimensions are found, `None` otherwise.
+    /// Note: iTerm2 dimensions are typically specified in cells, not pixels.
+    fn parse_iterm2_dimensions(&self, data: &[u8]) -> Option<(u32, u32)> {
+        let data_str = std::str::from_utf8(data).ok()?;
+
+        let mut width = None;
+        let mut height = None;
+
+        // Parse semicolon-separated key=value pairs
+        for part in data_str.split(';') {
+            if let Some((key, value)) = part.split_once('=') {
+                match key.trim() {
+                    "width" => {
+                        // Extract numeric value, ignoring units like "px"
+                        let val_str = value.trim().trim_end_matches("px");
+                        if val_str != "auto" {
+                            width = val_str.parse::<u32>().ok();
+                        }
+                    }
+                    "height" => {
+                        let val_str = value.trim().trim_end_matches("px");
+                        if val_str != "auto" {
+                            height = val_str.parse::<u32>().ok();
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        match (width, height) {
+            (Some(w), Some(h)) if w > 0 && h > 0 => Some((w, h)),
+            _ => None,
+        }
     }
 }
 
@@ -655,14 +812,74 @@ impl VTActor for TerminalState {
         }
     }
 
-    fn osc_dispatch(&mut self, _params: &[&[u8]]) {
-        // Handle OSC sequences (window title, etc.)
-        // Not needed for basic functionality
+    fn osc_dispatch(&mut self, params: &[&[u8]]) {
+        // Handle OSC sequences
+        // iTerm2 inline images use OSC 1337;File=...
+        if params.is_empty() {
+            return;
+        }
+
+        // Check if this is an iTerm2 inline image (OSC 1337;File=...)
+        if let Ok(first_param) = std::str::from_utf8(params[0]) {
+            if first_param.starts_with("1337;File=") || first_param == "1337" {
+                self.in_iterm2_mode = true;
+                self.current_iterm2_data.clear();
+
+                // Collect all the data
+                for param in params {
+                    self.current_iterm2_data.extend_from_slice(param);
+                    self.current_iterm2_data.push(b';');
+                }
+
+                // Parse dimensions from the parameters
+                let (width, height) = self
+                    .parse_iterm2_dimensions(&self.current_iterm2_data)
+                    .unwrap_or((0, 0));
+
+                let region = ITerm2Region {
+                    start_row: self.cursor_pos.0,
+                    start_col: self.cursor_pos.1,
+                    width,
+                    height,
+                    data: self.current_iterm2_data.clone(),
+                };
+                self.iterm2_regions.push(region);
+
+                self.in_iterm2_mode = false;
+                self.current_iterm2_data.clear();
+            }
+        }
     }
 
-    fn apc_dispatch(&mut self, _data: Vec<u8>) {
-        // Handle APC sequences (e.g., Kitty graphics protocol)
-        // Not needed for basic functionality
+    fn apc_dispatch(&mut self, data: Vec<u8>) {
+        // Handle APC sequences
+        // Kitty graphics protocol uses APC with 'G' command: ESC _ G <data> ESC \
+        if data.is_empty() {
+            return;
+        }
+
+        // Check if this is a Kitty graphics command (starts with 'G')
+        if data[0] == b'G' {
+            self.in_kitty_mode = true;
+            self.current_kitty_data = data.clone();
+
+            // Parse dimensions from the control data
+            let (width, height) = self
+                .parse_kitty_dimensions(&self.current_kitty_data)
+                .unwrap_or((0, 0));
+
+            let region = KittyRegion {
+                start_row: self.cursor_pos.0,
+                start_col: self.cursor_pos.1,
+                width,
+                height,
+                data: self.current_kitty_data.clone(),
+            };
+            self.kitty_regions.push(region);
+
+            self.in_kitty_mode = false;
+            self.current_kitty_data.clear();
+        }
     }
 }
 
@@ -1115,6 +1332,87 @@ impl ScreenState {
             .sixel_regions
             .iter()
             .any(|region| region.start_row == row && region.start_col == col)
+    }
+
+    /// Returns all Kitty graphics regions currently on screen.
+    ///
+    /// This method provides access to all Kitty graphics that have been rendered
+    /// via APC (Application Program Command) sequences. Each region includes position
+    /// and dimension information.
+    ///
+    /// # Returns
+    ///
+    /// A slice of [`KittyRegion`] containing all detected Kitty graphics.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use ratatui_testlib::ScreenState;
+    ///
+    /// let mut screen = ScreenState::new(80, 24);
+    /// // ... render some Kitty graphics ...
+    ///
+    /// let regions = screen.kitty_regions();
+    /// for (i, region) in regions.iter().enumerate() {
+    ///     println!(
+    ///         "Kitty region {}: position ({}, {}), size {}x{}",
+    ///         i, region.start_row, region.start_col, region.width, region.height
+    ///     );
+    /// }
+    /// ```
+    pub fn kitty_regions(&self) -> &[KittyRegion] {
+        &self.state.kitty_regions
+    }
+
+    /// Returns a mutable reference to the Kitty regions.
+    ///
+    /// This is primarily intended for testing purposes.
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to the vector of Kitty regions.
+    pub fn kitty_regions_mut(&mut self) -> &mut Vec<KittyRegion> {
+        &mut self.state.kitty_regions
+    }
+
+    /// Returns all iTerm2 inline image regions currently on screen.
+    ///
+    /// This method provides access to all iTerm2 inline images that have been rendered
+    /// via OSC 1337 sequences. Each region includes position and dimension information.
+    ///
+    /// # Returns
+    ///
+    /// A slice of [`ITerm2Region`] containing all detected iTerm2 inline images.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use ratatui_testlib::ScreenState;
+    ///
+    /// let mut screen = ScreenState::new(80, 24);
+    /// // ... render some iTerm2 inline images ...
+    ///
+    /// let regions = screen.iterm2_regions();
+    /// for (i, region) in regions.iter().enumerate() {
+    ///     println!(
+    ///         "iTerm2 region {}: position ({}, {}), size {}x{}",
+    ///         i, region.start_row, region.start_col, region.width, region.height
+    ///     );
+    /// }
+    /// ```
+    pub fn iterm2_regions(&self) -> &[ITerm2Region] {
+        &self.state.iterm2_regions
+    }
+
+    /// Returns a mutable reference to the iTerm2 regions.
+    ///
+    /// This is primarily intended for testing purposes.
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to the vector of iTerm2 regions.
+    pub fn iterm2_regions_mut(&mut self) -> &mut Vec<ITerm2Region> {
+        &mut self.state.iterm2_regions
     }
 
     /// Returns the screen contents for debugging purposes.
