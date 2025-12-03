@@ -16,8 +16,8 @@
 //! # Example
 //!
 //! ```rust,no_run
-//! use ratatui_testlib::TuiTestHarness;
 //! use portable_pty::CommandBuilder;
+//! use ratatui_testlib::TuiTestHarness;
 //!
 //! # fn test() -> ratatui_testlib::Result<()> {
 //! // Create a test harness
@@ -39,15 +39,104 @@
 //! # }
 //! ```
 
-use crate::error::{Result, TermTestError};
-use crate::events::{encode_key_event, KeyCode, KeyEvent, Modifiers};
-use crate::pty::TestTerminal;
-use crate::screen::ScreenState;
+use std::{
+    fs::File,
+    io::Write,
+    path::Path,
+    time::{Duration, Instant},
+};
+
 use portable_pty::{CommandBuilder, ExitStatus};
-use std::time::{Duration, Instant};
+
+use crate::{
+    error::{Result, TermTestError},
+    events::{encode_key_event, KeyCode, KeyEvent, Modifiers},
+    pty::TestTerminal,
+    screen::ScreenState,
+    terminal_profiles::{Feature, TerminalCapabilities, TerminalProfile},
+};
 
 /// Default timeout for wait operations (5 seconds).
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(5);
+
+/// Results from memory profiling.
+///
+/// Provides estimated memory usage for a test harness, including the screen
+/// buffer and Sixel regions.
+///
+/// # Memory Estimation
+///
+/// This struct provides size estimates, not precise heap measurements:
+///
+/// - **Screen buffer**: `width * height * size_of::<Cell>()`
+/// - **Sixel regions**: Sum of all Sixel data sizes
+///
+/// These are conservative estimates useful for detecting memory regressions
+/// in tests, not exact heap profiling.
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use ratatui_testlib::TuiTestHarness;
+///
+/// # fn test() -> ratatui_testlib::Result<()> {
+/// let harness = TuiTestHarness::new(80, 24)?;
+///
+/// // Get memory usage estimate
+/// let memory = harness.memory_usage();
+/// println!("Current: {} bytes", memory.current_bytes);
+/// println!("Peak: {} bytes", memory.peak_bytes);
+///
+/// // Assert memory stays under limit (e.g., 1MB)
+/// harness.assert_memory_under(1_000_000)?;
+/// # Ok(())
+/// # }
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MemoryResults {
+    /// Current estimated memory usage in bytes.
+    pub current_bytes: usize,
+    /// Peak estimated memory usage in bytes.
+    ///
+    /// Note: In the current implementation, this is the same as current_bytes
+    /// since we don't track historical peak values. Future versions may add
+    /// peak tracking across multiple measurements.
+    pub peak_bytes: usize,
+}
+
+impl MemoryResults {
+    /// Creates memory results from byte counts.
+    ///
+    /// # Arguments
+    ///
+    /// * `current_bytes` - Current memory usage estimate
+    /// * `peak_bytes` - Peak memory usage estimate
+    pub fn new(current_bytes: usize, peak_bytes: usize) -> Self {
+        Self {
+            current_bytes,
+            peak_bytes,
+        }
+    }
+
+    /// Returns a formatted summary string.
+    ///
+    /// # Example Output
+    ///
+    /// ```text
+    /// Memory Usage:
+    ///   Current: 123,456 bytes (120.56 KB)
+    ///   Peak: 150,000 bytes (146.48 KB)
+    /// ```
+    pub fn summary(&self) -> String {
+        format!(
+            "Memory Usage:\n  Current: {} bytes ({:.2} KB)\n  Peak: {} bytes ({:.2} KB)",
+            self.current_bytes,
+            self.current_bytes as f64 / 1024.0,
+            self.peak_bytes,
+            self.peak_bytes as f64 / 1024.0
+        )
+    }
+}
 
 /// Axis for alignment checking.
 ///
@@ -57,7 +146,7 @@ const DEFAULT_TIMEOUT: Duration = Duration::from_secs(5);
 /// # Example
 ///
 /// ```rust,no_run
-/// use ratatui_testlib::{TuiTestHarness, Rect, Axis};
+/// use ratatui_testlib::{Axis, Rect, TuiTestHarness};
 ///
 /// # fn test() -> ratatui_testlib::Result<()> {
 /// let harness = TuiTestHarness::new(80, 24)?;
@@ -83,6 +172,34 @@ const DEFAULT_POLL_INTERVAL: Duration = Duration::from_millis(100);
 /// Default buffer size for reading PTY output (4KB).
 const DEFAULT_BUFFER_SIZE: usize = 4096;
 
+/// An event that occurred during test execution, recorded for debugging.
+///
+/// This enum represents different types of events that can be captured during
+/// a test session for later playback or analysis.
+#[derive(Debug, Clone)]
+pub enum RecordedEvent {
+    /// Input data sent to the PTY.
+    Input(Vec<u8>),
+    /// Output data received from the PTY.
+    Output(Vec<u8>),
+    /// Screen state changed (e.g., after processing escape sequences).
+    StateChange {
+        /// Snapshot of screen contents at this point.
+        contents: String,
+        /// Cursor position (row, col).
+        cursor: (u16, u16),
+    },
+}
+
+/// A timestamped recorded event.
+#[derive(Debug, Clone)]
+struct TimestampedEvent {
+    /// Timestamp relative to recording start.
+    timestamp: Duration,
+    /// The recorded event.
+    event: RecordedEvent,
+}
+
 /// High-level test harness for TUI applications.
 ///
 /// This combines PTY management and terminal emulation to provide
@@ -91,8 +208,8 @@ const DEFAULT_BUFFER_SIZE: usize = 4096;
 /// # Example
 ///
 /// ```rust,no_run
-/// use ratatui_testlib::TuiTestHarness;
 /// use portable_pty::CommandBuilder;
+/// use ratatui_testlib::TuiTestHarness;
 ///
 /// let mut harness = TuiTestHarness::new(80, 24)?;
 /// let mut cmd = CommandBuilder::new("my-app");
@@ -104,8 +221,9 @@ const DEFAULT_BUFFER_SIZE: usize = 4096;
 /// # Builder Pattern
 ///
 /// ```rust,no_run
-/// use ratatui_testlib::TuiTestHarness;
 /// use std::time::Duration;
+///
+/// use ratatui_testlib::TuiTestHarness;
 ///
 /// let mut harness = TuiTestHarness::builder()
 ///     .with_size(80, 24)
@@ -120,6 +238,14 @@ pub struct TuiTestHarness {
     timeout: Duration,
     poll_interval: Duration,
     buffer_size: usize,
+    event_delay: Duration,
+    // Recording and debugging fields
+    recording: bool,
+    recorded_events: Vec<TimestampedEvent>,
+    recording_start: Option<Instant>,
+    verbose: bool,
+    // Terminal profile configuration
+    terminal_profile: TerminalProfile,
 }
 
 impl TuiTestHarness {
@@ -143,6 +269,12 @@ impl TuiTestHarness {
             timeout: DEFAULT_TIMEOUT,
             poll_interval: DEFAULT_POLL_INTERVAL,
             buffer_size: DEFAULT_BUFFER_SIZE,
+            event_delay: Duration::ZERO,
+            recording: false,
+            recorded_events: Vec::new(),
+            recording_start: None,
+            verbose: false,
+            terminal_profile: TerminalProfile::default(),
         })
     }
 
@@ -151,8 +283,9 @@ impl TuiTestHarness {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use ratatui_testlib::TuiTestHarness;
     /// use std::time::Duration;
+    ///
+    /// use ratatui_testlib::TuiTestHarness;
     ///
     /// let mut harness = TuiTestHarness::builder()
     ///     .with_size(80, 24)
@@ -184,6 +317,152 @@ impl TuiTestHarness {
         self
     }
 
+    /// Configures the harness for a specific terminal emulator profile.
+    ///
+    /// This sets the terminal profile which controls which features are available
+    /// during testing. Use this to ensure your TUI application works correctly
+    /// across different terminal emulators.
+    ///
+    /// # Arguments
+    ///
+    /// * `profile` - The terminal profile to use
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use ratatui_testlib::{TuiTestHarness, TerminalProfile};
+    ///
+    /// # fn test() -> ratatui_testlib::Result<()> {
+    /// // Test with WezTerm profile (supports Sixel)
+    /// let harness = TuiTestHarness::new(80, 24)?
+    ///     .with_terminal_profile(TerminalProfile::WezTerm);
+    ///
+    /// // Test with VT100 profile (minimal features)
+    /// let harness = TuiTestHarness::new(80, 24)?
+    ///     .with_terminal_profile(TerminalProfile::VT100);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn with_terminal_profile(mut self, profile: TerminalProfile) -> Self {
+        self.terminal_profile = profile;
+        self
+    }
+
+    /// Configures the harness to simulate a specific TERMINFO environment.
+    ///
+    /// This is a convenience method that looks up a terminal profile by name
+    /// and configures the harness to simulate that terminal's behavior.
+    ///
+    /// # Arguments
+    ///
+    /// * `term_name` - TERM environment variable value (e.g., "xterm-256color", "wezterm")
+    ///
+    /// # Returns
+    ///
+    /// Returns `self` if a matching profile is found, otherwise uses the default profile.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use ratatui_testlib::TuiTestHarness;
+    ///
+    /// # fn test() -> ratatui_testlib::Result<()> {
+    /// // Simulate WezTerm using TERM value
+    /// let harness = TuiTestHarness::new(80, 24)?
+    ///     .simulate_terminfo("wezterm");
+    ///
+    /// // Simulate xterm-256color
+    /// let harness = TuiTestHarness::new(80, 24)?
+    ///     .simulate_terminfo("xterm-256color");
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn simulate_terminfo(mut self, term_name: &str) -> Self {
+        if let Some(profile) = TerminalProfile::from_name(term_name) {
+            self.terminal_profile = profile;
+        }
+        self
+    }
+
+    /// Checks if the current terminal profile supports a specific feature.
+    ///
+    /// This allows you to conditionally run tests or assertions based on
+    /// terminal capabilities.
+    ///
+    /// # Arguments
+    ///
+    /// * `feature` - The feature to check
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use ratatui_testlib::{TuiTestHarness, TerminalProfile, Feature};
+    ///
+    /// # fn test() -> ratatui_testlib::Result<()> {
+    /// let harness = TuiTestHarness::new(80, 24)?
+    ///     .with_terminal_profile(TerminalProfile::WezTerm);
+    ///
+    /// if harness.supports_feature(Feature::Sixel) {
+    ///     // Run Sixel-specific tests
+    ///     println!("Testing Sixel graphics...");
+    /// }
+    ///
+    /// if harness.supports_feature(Feature::TrueColor) {
+    ///     // Verify true color rendering
+    ///     println!("Testing 24-bit color...");
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn supports_feature(&self, feature: Feature) -> bool {
+        self.terminal_profile.supports(feature)
+    }
+
+    /// Returns the full terminal capabilities for the current profile.
+    ///
+    /// This provides detailed information about what features are supported,
+    /// including color depth, mouse protocols, and graphics support.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use ratatui_testlib::{TuiTestHarness, TerminalProfile};
+    ///
+    /// # fn test() -> ratatui_testlib::Result<()> {
+    /// let harness = TuiTestHarness::new(80, 24)?
+    ///     .with_terminal_profile(TerminalProfile::WezTerm);
+    ///
+    /// let caps = harness.terminal_capabilities();
+    /// println!("Terminal: {}", caps.term_name);
+    /// println!("Color depth: {:?}", caps.color_depth);
+    /// println!("Sixel support: {}", caps.sixel_support);
+    /// println!("\n{}", caps.summary());
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn terminal_capabilities(&self) -> TerminalCapabilities {
+        self.terminal_profile.capabilities()
+    }
+
+    /// Returns the current terminal profile.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use ratatui_testlib::{TuiTestHarness, TerminalProfile};
+    ///
+    /// # fn test() -> ratatui_testlib::Result<()> {
+    /// let harness = TuiTestHarness::new(80, 24)?
+    ///     .with_terminal_profile(TerminalProfile::WezTerm);
+    ///
+    /// assert_eq!(harness.terminal_profile(), TerminalProfile::WezTerm);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn terminal_profile(&self) -> TerminalProfile {
+        self.terminal_profile
+    }
+
     /// Spawns a process in the PTY.
     ///
     /// # Arguments
@@ -207,7 +486,9 @@ impl TuiTestHarness {
     ///
     /// Returns an error if the write fails.
     pub fn send_text(&mut self, text: &str) -> Result<()> {
-        self.terminal.write(text.as_bytes())?;
+        let bytes = text.as_bytes();
+        self.record_input(bytes);
+        self.terminal.write(bytes)?;
         // Update state, ignoring ProcessExited since the process might exit
         // after receiving input (e.g., sending 'q' to quit)
         let _ = self.update_state();
@@ -230,7 +511,7 @@ impl TuiTestHarness {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use ratatui_testlib::{TuiTestHarness, KeyCode};
+    /// use ratatui_testlib::{KeyCode, TuiTestHarness};
     ///
     /// # fn test() -> ratatui_testlib::Result<()> {
     /// let mut harness = TuiTestHarness::new(80, 24)?;
@@ -267,7 +548,7 @@ impl TuiTestHarness {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use ratatui_testlib::{TuiTestHarness, KeyCode, Modifiers};
+    /// use ratatui_testlib::{KeyCode, Modifiers, TuiTestHarness};
     ///
     /// # fn test() -> ratatui_testlib::Result<()> {
     /// let mut harness = TuiTestHarness::new(80, 24)?;
@@ -280,10 +561,7 @@ impl TuiTestHarness {
     /// harness.send_key_with_modifiers(KeyCode::Char('x'), Modifiers::ALT)?;
     ///
     /// // Send Ctrl+Alt+Delete (multiple modifiers)
-    /// harness.send_key_with_modifiers(
-    ///     KeyCode::Delete,
-    ///     Modifiers::CTRL | Modifiers::ALT
-    /// )?;
+    /// harness.send_key_with_modifiers(KeyCode::Delete, Modifiers::CTRL | Modifiers::ALT)?;
     /// # Ok(())
     /// # }
     /// ```
@@ -325,17 +603,149 @@ impl TuiTestHarness {
         Ok(())
     }
 
+    /// Sets the delay between consecutive events.
+    ///
+    /// This configures how long the harness waits after sending each event before
+    /// proceeding. This is useful for testing debouncing, throttling, or simulating
+    /// realistic user input timing.
+    ///
+    /// # Arguments
+    ///
+    /// * `delay` - Duration to wait between events
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use ratatui_testlib::TuiTestHarness;
+    /// use std::time::Duration;
+    ///
+    /// # fn test() -> ratatui_testlib::Result<()> {
+    /// let mut harness = TuiTestHarness::new(80, 24)?;
+    ///
+    /// // Set 100ms delay between events
+    /// harness.set_event_delay(Duration::from_millis(100));
+    ///
+    /// // Each key will now have 100ms delay after it
+    /// harness.send_keys("hello")?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn set_event_delay(&mut self, delay: Duration) {
+        self.event_delay = delay;
+    }
+
+    /// Gets the current event delay.
+    ///
+    /// Returns the configured delay between consecutive events. If zero,
+    /// the default 50ms delay is used.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use ratatui_testlib::TuiTestHarness;
+    /// use std::time::Duration;
+    ///
+    /// # fn test() -> ratatui_testlib::Result<()> {
+    /// let mut harness = TuiTestHarness::new(80, 24)?;
+    ///
+    /// harness.set_event_delay(Duration::from_millis(100));
+    /// assert_eq!(harness.event_delay(), Duration::from_millis(100));
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn event_delay(&self) -> Duration {
+        self.event_delay
+    }
+
+    /// Simulates time passing without sending any events.
+    ///
+    /// This is useful for testing debouncing logic where you need to verify
+    /// that nothing happens during a quiet period.
+    ///
+    /// # Arguments
+    ///
+    /// * `duration` - Amount of time to advance
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use ratatui_testlib::TuiTestHarness;
+    /// use std::time::Duration;
+    ///
+    /// # fn test() -> ratatui_testlib::Result<()> {
+    /// let mut harness = TuiTestHarness::new(80, 24)?;
+    ///
+    /// // Send a key, then wait to test debouncing
+    /// harness.send_key(ratatui_testlib::KeyCode::Char('a'))?;
+    /// harness.advance_time(Duration::from_millis(300))?;
+    ///
+    /// // Now the debounced action should have occurred
+    /// harness.wait_for_text("Debounced action")?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn advance_time(&mut self, duration: Duration) -> Result<()> {
+        std::thread::sleep(duration);
+        // Update state after time has passed if a process is running
+        if self.terminal.is_running() {
+            // Ignore ProcessExited error since we just want to advance time
+            let _ = self.update_state();
+        }
+        Ok(())
+    }
+
+    /// Sends a key multiple times with a specified interval between each press.
+    ///
+    /// This simulates key repeat behavior or rapid key pressing, useful for
+    /// testing auto-repeat handling, rate limiting, or rapid input scenarios.
+    ///
+    /// # Arguments
+    ///
+    /// * `key` - The character to send
+    /// * `count` - Number of times to send the key
+    /// * `interval` - Delay between each key press
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use ratatui_testlib::TuiTestHarness;
+    /// use std::time::Duration;
+    ///
+    /// # fn test() -> ratatui_testlib::Result<()> {
+    /// let mut harness = TuiTestHarness::new(80, 24)?;
+    ///
+    /// // Simulate holding down the right arrow key (10 presses, 50ms apart)
+    /// harness.press_key_repeat('→', 10, Duration::from_millis(50))?;
+    ///
+    /// // Or use KeyCode for special keys
+    /// // This would be: harness.send_key_repeat(KeyCode::Right, 10, ...)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn press_key_repeat(&mut self, key: char, count: usize, interval: Duration) -> Result<()> {
+        for _ in 0..count {
+            self.send_key(KeyCode::Char(key))?;
+            std::thread::sleep(interval);
+        }
+        Ok(())
+    }
+
     /// Internal method to send a key event and update state.
     ///
     /// This encodes the key event to bytes, writes to the PTY, adds a small
     /// delay for the application to process the input, and updates the screen state.
     fn send_key_event(&mut self, event: KeyEvent) -> Result<()> {
         let bytes = encode_key_event(&event);
+        self.record_input(&bytes);
         self.terminal.write_all(&bytes)?;
 
-        // Small delay to allow the application to process the input
-        // This is important for applications that need time to react to input
-        std::thread::sleep(Duration::from_millis(50));
+        // Apply configured event delay, or use default 50ms if no delay is set
+        let delay = if self.event_delay.is_zero() {
+            Duration::from_millis(50)
+        } else {
+            self.event_delay
+        };
+        std::thread::sleep(delay);
 
         // Update state, ignoring ProcessExited since the process might exit
         // after receiving input (e.g., pressing 'q' to quit)
@@ -365,7 +775,9 @@ impl TuiTestHarness {
                 match self.terminal.read(&mut buf) {
                     Ok(0) => break, // No more data
                     Ok(n) => {
+                        self.record_output(&buf[..n]);
                         self.state.feed(&buf[..n]);
+                        self.record_state_change();
                     }
                     Err(_) => break, // Any error, just stop reading
                 }
@@ -380,12 +792,16 @@ impl TuiTestHarness {
             match self.terminal.read(&mut buf) {
                 Ok(0) => break, // No more data available (WouldBlock returns Ok(0))
                 Ok(n) => {
+                    self.record_output(&buf[..n]);
                     self.state.feed(&buf[..n]);
+                    self.record_state_change();
                 }
                 Err(e) => {
                     // Use proper ErrorKind matching instead of string matching
                     match e {
-                        TermTestError::Io(io_err) if io_err.kind() == std::io::ErrorKind::WouldBlock => {
+                        TermTestError::Io(io_err)
+                            if io_err.kind() == std::io::ErrorKind::WouldBlock =>
+                        {
                             break;
                         }
                         _ => return Err(e),
@@ -418,9 +834,7 @@ impl TuiTestHarness {
     /// ```rust,no_run
     /// # use ratatui_testlib::TuiTestHarness;
     /// # let mut harness = TuiTestHarness::new(80, 24)?;
-    /// harness.wait_for(|state| {
-    ///     state.contains("Ready")
-    /// })?;
+    /// harness.wait_for(|state| state.contains("Ready"))?;
     /// # Ok::<(), ratatui_testlib::TermTestError>(())
     /// ```
     pub fn wait_for<F>(&mut self, condition: F) -> Result<()>
@@ -527,10 +941,7 @@ impl TuiTestHarness {
     pub fn wait_for_text(&mut self, text: &str) -> Result<()> {
         let text = text.to_string();
         let description = format!("text '{}'", text);
-        self.wait_for_with_context(
-            move |state| state.contains(&text),
-            &description,
-        )
+        self.wait_for_with_context(move |state| state.contains(&text), &description)
     }
 
     /// Waits for specific text to appear with a custom timeout.
@@ -602,9 +1013,7 @@ impl TuiTestHarness {
                 eprintln!("Current screen state:\n{}", current_state);
                 eprintln!("==========================================\n");
 
-                return Err(TermTestError::Timeout {
-                    timeout_ms: timeout.as_millis() as u64,
-                });
+                return Err(TermTestError::Timeout { timeout_ms: timeout.as_millis() as u64 });
             }
 
             iterations += 1;
@@ -623,7 +1032,8 @@ impl TuiTestHarness {
     ///
     /// # Errors
     ///
-    /// Returns a `Timeout` error if the cursor does not reach the position within the configured timeout.
+    /// Returns a `Timeout` error if the cursor does not reach the position within the configured
+    /// timeout.
     ///
     /// # Example
     ///
@@ -635,10 +1045,7 @@ impl TuiTestHarness {
     /// ```
     pub fn wait_for_cursor(&mut self, pos: (u16, u16)) -> Result<()> {
         let description = format!("cursor at ({}, {})", pos.0, pos.1);
-        self.wait_for_with_context(
-            move |state| state.cursor_position() == pos,
-            &description,
-        )
+        self.wait_for_with_context(move |state| state.cursor_position() == pos, &description)
     }
 
     /// Waits for the cursor to reach a specific position with a custom timeout.
@@ -650,8 +1057,9 @@ impl TuiTestHarness {
     ///
     /// # Errors
     ///
-    /// Returns a `Timeout` error if the cursor does not reach the position within the specified timeout.
-    /// Returns `ProcessExited` if the child process exits before the cursor reaches the position.
+    /// Returns a `Timeout` error if the cursor does not reach the position within the specified
+    /// timeout. Returns `ProcessExited` if the child process exits before the cursor reaches
+    /// the position.
     ///
     /// # Example
     ///
@@ -707,9 +1115,7 @@ impl TuiTestHarness {
                 eprintln!("Current screen state:\n{}", current_state);
                 eprintln!("==========================================\n");
 
-                return Err(TermTestError::Timeout {
-                    timeout_ms: timeout.as_millis() as u64,
-                });
+                return Err(TermTestError::Timeout { timeout_ms: timeout.as_millis() as u64 });
             }
 
             iterations += 1;
@@ -842,8 +1248,8 @@ impl TuiTestHarness {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use ratatui_testlib::TuiTestHarness;
     /// use portable_pty::CommandBuilder;
+    /// use ratatui_testlib::TuiTestHarness;
     ///
     /// # fn test() -> ratatui_testlib::Result<()> {
     /// let mut harness = TuiTestHarness::new(80, 24)?;
@@ -872,8 +1278,8 @@ impl TuiTestHarness {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use ratatui_testlib::TuiTestHarness;
     /// use portable_pty::CommandBuilder;
+    /// use ratatui_testlib::TuiTestHarness;
     ///
     /// # fn test() -> ratatui_testlib::Result<()> {
     /// let mut harness = TuiTestHarness::new(80, 24)?;
@@ -888,6 +1294,108 @@ impl TuiTestHarness {
     /// ```
     pub fn wait_exit(&mut self) -> Result<ExitStatus> {
         self.terminal.wait()
+    }
+
+    // ========================================================================
+    // Memory Profiling
+    // ========================================================================
+
+    /// Gets current memory usage estimate.
+    ///
+    /// Returns estimated memory usage based on:
+    /// - Screen buffer: `width * height * size_of::<Cell>()`
+    /// - Sixel regions: Sum of all Sixel data sizes
+    ///
+    /// This is a size estimate, not precise heap measurement. It's useful
+    /// for detecting memory regressions in tests.
+    ///
+    /// # Returns
+    ///
+    /// A [`MemoryResults`] struct with current and peak memory estimates.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use ratatui_testlib::TuiTestHarness;
+    ///
+    /// # fn test() -> ratatui_testlib::Result<()> {
+    /// let harness = TuiTestHarness::new(80, 24)?;
+    ///
+    /// let memory = harness.memory_usage();
+    /// println!("Current memory: {} bytes", memory.current_bytes);
+    /// println!("Peak memory: {} bytes", memory.peak_bytes);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn memory_usage(&self) -> MemoryResults {
+        use std::mem::size_of;
+
+        // Get screen dimensions
+        let (width, height) = self.state.size();
+
+        // Estimate screen buffer size
+        // Each cell contains: char (4 bytes) + 2 Option<u8> (2 bytes) + 3 bool (3 bytes) = ~9 bytes
+        // But with padding/alignment it's likely more
+        let screen_buffer_size =
+            (width as usize) * (height as usize) * size_of::<crate::screen::Cell>();
+
+        // Estimate Sixel regions size
+        let sixel_size: usize = self
+            .state
+            .sixel_regions()
+            .iter()
+            .map(|region| region.data.len())
+            .sum();
+
+        let total = screen_buffer_size + sixel_size;
+
+        // Note: peak_bytes is currently the same as current_bytes
+        // Future versions may track historical peaks
+        MemoryResults::new(total, total)
+    }
+
+    /// Asserts memory is under a limit.
+    ///
+    /// Checks that the current estimated memory usage is below the specified
+    /// limit in bytes. This is useful for regression testing to ensure memory
+    /// usage doesn't grow unexpectedly.
+    ///
+    /// # Arguments
+    ///
+    /// * `limit_bytes` - Maximum allowed memory usage in bytes
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the current memory usage exceeds the limit.
+    /// The error message includes the current usage and the limit.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use ratatui_testlib::TuiTestHarness;
+    ///
+    /// # fn test() -> ratatui_testlib::Result<()> {
+    /// let harness = TuiTestHarness::new(80, 24)?;
+    ///
+    /// // Assert memory stays under 1 MB
+    /// harness.assert_memory_under(1_000_000)?;
+    ///
+    /// // Assert memory stays under 100 KB
+    /// harness.assert_memory_under(100_000)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn assert_memory_under(&self, limit_bytes: usize) -> Result<()> {
+        let memory = self.memory_usage();
+
+        if memory.current_bytes > limit_bytes {
+            return Err(TermTestError::Parse(format!(
+                "Memory usage exceeds limit: {} bytes > {} bytes (limit)\n{}",
+                memory.current_bytes, limit_bytes, memory.summary()
+            )));
+        }
+
+        Ok(())
     }
 
     // ========================================================================
@@ -981,7 +1489,7 @@ impl TuiTestHarness {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use ratatui_testlib::{TuiTestHarness, Rect};
+    /// use ratatui_testlib::{Rect, TuiTestHarness};
     ///
     /// # fn test() -> ratatui_testlib::Result<()> {
     /// let harness = TuiTestHarness::new(80, 24)?;
@@ -1048,7 +1556,7 @@ impl TuiTestHarness {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use ratatui_testlib::{TuiTestHarness, Rect};
+    /// use ratatui_testlib::{Rect, TuiTestHarness};
     ///
     /// # fn test() -> ratatui_testlib::Result<()> {
     /// let harness = TuiTestHarness::new(80, 24)?;
@@ -1061,17 +1569,29 @@ impl TuiTestHarness {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn assert_no_overlap(&self, rect1: crate::screen::Rect, rect2: crate::screen::Rect) -> Result<()> {
+    pub fn assert_no_overlap(
+        &self,
+        rect1: crate::screen::Rect,
+        rect2: crate::screen::Rect,
+    ) -> Result<()> {
         if rect1.intersects(&rect2) {
             return Err(TermTestError::Parse(format!(
                 "Rectangles overlap!\n\
                  Rect 1: (x={}, y={}, width={}, height={})\n\
                  Rect 2: (x={}, y={}, width={}, height={})\n\
                  Overlap region exists between x=[{}, {}) and y=[{}, {})",
-                rect1.x, rect1.y, rect1.width, rect1.height,
-                rect2.x, rect2.y, rect2.width, rect2.height,
-                rect1.x.max(rect2.x), rect1.right().min(rect2.right()),
-                rect1.y.max(rect2.y), rect1.bottom().min(rect2.bottom())
+                rect1.x,
+                rect1.y,
+                rect1.width,
+                rect1.height,
+                rect2.x,
+                rect2.y,
+                rect2.width,
+                rect2.height,
+                rect1.x.max(rect2.x),
+                rect1.right().min(rect2.right()),
+                rect1.y.max(rect2.y),
+                rect1.bottom().min(rect2.bottom())
             )));
         }
         Ok(())
@@ -1095,7 +1615,7 @@ impl TuiTestHarness {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use ratatui_testlib::{TuiTestHarness, Rect, Axis};
+    /// use ratatui_testlib::{Axis, Rect, TuiTestHarness};
     ///
     /// # fn test() -> ratatui_testlib::Result<()> {
     /// let harness = TuiTestHarness::new(80, 24)?;
@@ -1121,8 +1641,14 @@ impl TuiTestHarness {
                         "Rectangles not horizontally aligned (different Y coordinates)\n\
                          Rect 1: y={} (x={}, width={}, height={})\n\
                          Rect 2: y={} (x={}, width={}, height={})",
-                        rect1.y, rect1.x, rect1.width, rect1.height,
-                        rect2.y, rect2.x, rect2.width, rect2.height
+                        rect1.y,
+                        rect1.x,
+                        rect1.width,
+                        rect1.height,
+                        rect2.y,
+                        rect2.x,
+                        rect2.width,
+                        rect2.height
                     )));
                 }
             }
@@ -1132,8 +1658,14 @@ impl TuiTestHarness {
                         "Rectangles not vertically aligned (different X coordinates)\n\
                          Rect 1: x={} (y={}, width={}, height={})\n\
                          Rect 2: x={} (y={}, width={}, height={})",
-                        rect1.x, rect1.y, rect1.width, rect1.height,
-                        rect2.x, rect2.y, rect2.width, rect2.height
+                        rect1.x,
+                        rect1.y,
+                        rect1.width,
+                        rect1.height,
+                        rect2.x,
+                        rect2.y,
+                        rect2.width,
+                        rect2.height
                     )));
                 }
             }
@@ -1166,9 +1698,10 @@ impl TuiTestHarness {
     ///
     /// let regions = harness.sixel_regions();
     /// for (i, region) in regions.iter().enumerate() {
-    ///     println!("Sixel {}: position ({}, {}), size {}x{}",
-    ///         i, region.start_row, region.start_col,
-    ///         region.width, region.height);
+    ///     println!(
+    ///         "Sixel {}: position ({}, {}), size {}x{}",
+    ///         i, region.start_row, region.start_col, region.width, region.height
+    ///     );
     /// }
     /// # Ok(())
     /// # }
@@ -1239,7 +1772,8 @@ impl TuiTestHarness {
     /// ```
     #[cfg(feature = "sixel")]
     pub fn sixel_at(&self, row: u16, col: u16) -> Option<&crate::screen::SixelRegion> {
-        self.state.sixel_regions()
+        self.state
+            .sixel_regions()
             .iter()
             .find(|r| r.start_row == row && r.start_col == col)
     }
@@ -1398,19 +1932,17 @@ impl TuiTestHarness {
         let preview_area = (5, 40, 35, 15);
 
         if !self.has_sixel_in_area(preview_area) {
-            return Err(TermTestError::SixelValidation(
-                format!(
-                    "No Sixel graphics found in standard preview area {:?}. \
+            return Err(TermTestError::SixelValidation(format!(
+                "No Sixel graphics found in standard preview area {:?}. \
                     Current Sixel count: {}. \
                     Regions: {:?}",
-                    preview_area,
-                    self.sixel_count(),
-                    self.sixel_regions()
-                        .iter()
-                        .map(|r| (r.start_row, r.start_col, r.width, r.height))
-                        .collect::<Vec<_>>()
-                )
-            ));
+                preview_area,
+                self.sixel_count(),
+                self.sixel_regions()
+                    .iter()
+                    .map(|r| (r.start_row, r.start_col, r.width, r.height))
+                    .collect::<Vec<_>>()
+            )));
         }
         Ok(())
     }
@@ -1448,21 +1980,599 @@ impl TuiTestHarness {
     #[cfg(feature = "sixel")]
     pub fn assert_preview_has_sixel_in(&self, preview_area: (u16, u16, u16, u16)) -> Result<()> {
         if !self.has_sixel_in_area(preview_area) {
-            return Err(TermTestError::SixelValidation(
-                format!(
-                    "No Sixel graphics found in preview area {:?}. \
+            return Err(TermTestError::SixelValidation(format!(
+                "No Sixel graphics found in preview area {:?}. \
                     Current Sixel count: {}. \
                     Regions: {:?}",
-                    preview_area,
-                    self.sixel_count(),
-                    self.sixel_regions()
-                        .iter()
-                        .map(|r| (r.start_row, r.start_col, r.width, r.height))
-                        .collect::<Vec<_>>()
-                )
-            ));
+                preview_area,
+                self.sixel_count(),
+                self.sixel_regions()
+                    .iter()
+                    .map(|r| (r.start_row, r.start_col, r.width, r.height))
+                    .collect::<Vec<_>>()
+            )));
         }
         Ok(())
+    }
+
+    // ========================================================================
+    // Golden File Testing (Visual Regression)
+    // ========================================================================
+
+    /// Save the current screen state as a golden file.
+    ///
+    /// Golden files capture the expected terminal output for visual regression testing.
+    /// They are saved in the directory specified by the `GOLDEN_DIR` environment variable,
+    /// or `tests/golden/` by default.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - Name for the golden file (used as filename without extension)
+    ///
+    /// # Returns
+    ///
+    /// The path where the golden file was saved.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the file cannot be written or the directory cannot be created.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use portable_pty::CommandBuilder;
+    /// use ratatui_testlib::TuiTestHarness;
+    ///
+    /// # fn test() -> ratatui_testlib::Result<()> {
+    /// let mut harness = TuiTestHarness::new(80, 24)?;
+    /// let cmd = CommandBuilder::new("my-app");
+    /// harness.spawn(cmd)?;
+    /// harness.wait_for_text("Welcome")?;
+    ///
+    /// // Save current state as golden
+    /// let path = harness.save_golden("welcome_screen")?;
+    /// println!("Saved golden file to: {}", path.display());
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn save_golden(&self, name: &str) -> Result<std::path::PathBuf> {
+        crate::golden::save_golden(name, &self.state)
+    }
+
+    /// Compare current screen state against a golden file.
+    ///
+    /// This method loads a previously saved golden file and compares it against
+    /// the current screen state. If they don't match, it generates a detailed
+    /// unified diff showing the differences.
+    ///
+    /// If the `UPDATE_GOLDENS=1` environment variable is set, this will update
+    /// the golden file instead of comparing (useful for updating all goldens at once).
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - Name of the golden file to compare against (without extension)
+    ///
+    /// # Returns
+    ///
+    /// `Ok(())` if the states match (or golden was updated in update mode).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error with a detailed diff if the states don't match, or if
+    /// the golden file cannot be read.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use portable_pty::CommandBuilder;
+    /// use ratatui_testlib::TuiTestHarness;
+    ///
+    /// # fn test() -> ratatui_testlib::Result<()> {
+    /// let mut harness = TuiTestHarness::new(80, 24)?;
+    /// let cmd = CommandBuilder::new("my-app");
+    /// harness.spawn(cmd)?;
+    /// harness.wait_for_text("Welcome")?;
+    ///
+    /// // Compare against previously saved golden
+    /// harness.assert_matches_golden("welcome_screen")?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # Update Mode
+    ///
+    /// To update all golden files at once:
+    ///
+    /// ```bash
+    /// UPDATE_GOLDENS=1 cargo test
+    /// ```
+    pub fn assert_matches_golden(&self, name: &str) -> Result<()> {
+        crate::golden::assert_matches_golden(name, &self.state)
+    }
+
+    /// Update a golden file with the current screen state.
+    ///
+    /// This is equivalent to `save_golden()` but makes the intent clearer when
+    /// you're explicitly updating an existing golden file.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - Name of the golden file to update (without extension)
+    ///
+    /// # Returns
+    ///
+    /// The path where the golden file was saved.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the file cannot be written.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use portable_pty::CommandBuilder;
+    /// use ratatui_testlib::TuiTestHarness;
+    ///
+    /// # fn test() -> ratatui_testlib::Result<()> {
+    /// let mut harness = TuiTestHarness::new(80, 24)?;
+    /// let cmd = CommandBuilder::new("my-app");
+    /// harness.spawn(cmd)?;
+    /// harness.wait_for_text("New Layout")?;
+    ///
+    /// // Update golden file after intentional UI changes
+    /// harness.update_golden("main_screen")?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn update_golden(&self, name: &str) -> Result<std::path::PathBuf> {
+        crate::golden::update_golden(name, &self.state)
+    }
+
+    // ============================================================================
+    // Recording and Debug Methods
+    // ============================================================================
+
+    /// Starts recording all I/O events and state changes.
+    ///
+    /// When recording is enabled, the harness will capture:
+    /// - All input sent to the PTY
+    /// - All output received from the PTY
+    /// - Screen state changes after processing escape sequences
+    ///
+    /// Recordings can be saved to disk using [`save_recording`](Self::save_recording)
+    /// for debugging failed tests or understanding application behavior.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use ratatui_testlib::TuiTestHarness;
+    ///
+    /// # fn test() -> ratatui_testlib::Result<()> {
+    /// let mut harness = TuiTestHarness::new(80, 24)?;
+    /// harness.start_recording();
+    ///
+    /// // Test operations...
+    /// harness.send_text("hello\n")?;
+    ///
+    /// // Save recording for debugging
+    /// harness.save_recording("test_recording.json")?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn start_recording(&mut self) {
+        self.recording = true;
+        self.recording_start = Some(Instant::now());
+        self.recorded_events.clear();
+    }
+
+    /// Stops recording I/O events.
+    ///
+    /// Recording can be stopped without saving, or you can call
+    /// [`save_recording`](Self::save_recording) to persist the events.
+    pub fn stop_recording(&mut self) {
+        self.recording = false;
+    }
+
+    /// Saves the current recording to a file in JSON format.
+    ///
+    /// The recording includes all captured events with timestamps, which can be
+    /// useful for debugging test failures or understanding application behavior.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Path where the recording should be saved
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The file cannot be created
+    /// - Serialization fails
+    /// - Writing to the file fails
+    ///
+    /// # Format
+    ///
+    /// The saved file is a JSON array containing timestamped events:
+    ///
+    /// ```json
+    /// [
+    ///   {
+    ///     "timestamp_ms": 0,
+    ///     "event": {
+    ///       "type": "Input",
+    ///       "data": [104, 101, 108, 108, 111]
+    ///     }
+    ///   },
+    ///   {
+    ///     "timestamp_ms": 150,
+    ///     "event": {
+    ///       "type": "Output",
+    ///       "data": [27, 91, 72, 27, 91, 50, 74]
+    ///     }
+    ///   }
+    /// ]
+    /// ```
+    pub fn save_recording<P: AsRef<Path>>(&self, path: P) -> Result<()> {
+        use std::io::BufWriter;
+
+        let file = File::create(path.as_ref()).map_err(|e| {
+            TermTestError::Io(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("Failed to create recording file: {}", e),
+            ))
+        })?;
+
+        let mut writer = BufWriter::new(file);
+
+        // Write JSON array
+        writeln!(writer, "[").map_err(|e| {
+            TermTestError::Io(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("Failed to write recording: {}", e),
+            ))
+        })?;
+
+        for (i, event) in self.recorded_events.iter().enumerate() {
+            let comma = if i < self.recorded_events.len() - 1 { "," } else { "" };
+
+            // Format event as JSON
+            let event_json = match &event.event {
+                RecordedEvent::Input(data) => {
+                    format!(
+                        r#"  {{"timestamp_ms": {}, "event": {{"type": "Input", "data": {:?}}}}}{}"#,
+                        event.timestamp.as_millis(),
+                        data,
+                        comma
+                    )
+                }
+                RecordedEvent::Output(data) => {
+                    format!(
+                        r#"  {{"timestamp_ms": {}, "event": {{"type": "Output", "data": {:?}}}}}{}"#,
+                        event.timestamp.as_millis(),
+                        data,
+                        comma
+                    )
+                }
+                RecordedEvent::StateChange { contents, cursor } => {
+                    let escaped_contents = contents
+                        .replace('\\', "\\\\")
+                        .replace('"', "\\\"")
+                        .replace('\n', "\\n")
+                        .replace('\r', "\\r")
+                        .replace('\t', "\\t");
+                    format!(
+                        r#"  {{"timestamp_ms": {}, "event": {{"type": "StateChange", "contents": "{}", "cursor": [{}, {}]}}}}{}"#,
+                        event.timestamp.as_millis(),
+                        escaped_contents,
+                        cursor.0,
+                        cursor.1,
+                        comma
+                    )
+                }
+            };
+
+            writeln!(writer, "{}", event_json).map_err(|e| {
+                TermTestError::Io(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!("Failed to write event: {}", e),
+                ))
+            })?;
+        }
+
+        writeln!(writer, "]").map_err(|e| {
+            TermTestError::Io(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("Failed to write recording: {}", e),
+            ))
+        })?;
+
+        writer.flush().map_err(|e| {
+            TermTestError::Io(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("Failed to flush recording: {}", e),
+            ))
+        })?;
+
+        Ok(())
+    }
+
+    /// Checks if recording is currently active.
+    ///
+    /// # Returns
+    ///
+    /// `true` if recording is active, `false` otherwise.
+    pub fn is_recording(&self) -> bool {
+        self.recording
+    }
+
+    /// Saves the current screen state to a file.
+    ///
+    /// This is useful for capturing the screen state when a test fails,
+    /// allowing you to inspect what was actually displayed.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Path where the screenshot should be saved
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the file cannot be created or written.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use ratatui_testlib::TuiTestHarness;
+    ///
+    /// # fn test() -> ratatui_testlib::Result<()> {
+    /// let mut harness = TuiTestHarness::new(80, 24)?;
+    /// // ... spawn app and interact ...
+    ///
+    /// // Save screenshot on failure
+    /// if !harness.screen_contents().contains("expected") {
+    ///     harness.save_screenshot("failure_screenshot.txt")?;
+    ///     panic!("Test failed, screenshot saved");
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn save_screenshot<P: AsRef<Path>>(&self, path: P) -> Result<()> {
+        let mut file = File::create(path.as_ref()).map_err(|e| {
+            TermTestError::Io(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("Failed to create screenshot file: {}", e),
+            ))
+        })?;
+
+        let contents = self.screenshot_string();
+        file.write_all(contents.as_bytes()).map_err(|e| {
+            TermTestError::Io(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("Failed to write screenshot: {}", e),
+            ))
+        })?;
+
+        Ok(())
+    }
+
+    /// Returns the current screen state as a string.
+    ///
+    /// This includes the screen contents with a header showing dimensions
+    /// and cursor position, formatted for easy reading in logs.
+    ///
+    /// # Returns
+    ///
+    /// A formatted string containing screen state information.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use ratatui_testlib::TuiTestHarness;
+    ///
+    /// # fn test() -> ratatui_testlib::Result<()> {
+    /// let mut harness = TuiTestHarness::new(80, 24)?;
+    /// // ... spawn app and interact ...
+    ///
+    /// // Log current state
+    /// eprintln!("{}", harness.screenshot_string());
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn screenshot_string(&self) -> String {
+        let cursor = self.state.cursor_position();
+        let contents = self.state.debug_contents();
+        let (width, height) = self.state.size();
+
+        format!(
+            "=== Screen State ===\n\
+             Size: {}x{}\n\
+             Cursor: row={}, col={}\n\
+             {}\n\
+             ===================",
+            width, height, cursor.0, cursor.1, contents
+        )
+    }
+
+    /// Enables or disables verbose escape sequence logging.
+    ///
+    /// When verbose mode is enabled, all escape sequences received from the PTY
+    /// are logged to stderr in a human-readable format. This is useful for
+    /// debugging terminal emulation issues or understanding what escape sequences
+    /// your application is generating.
+    ///
+    /// # Arguments
+    ///
+    /// * `verbose` - `true` to enable verbose logging, `false` to disable
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use ratatui_testlib::TuiTestHarness;
+    ///
+    /// # fn test() -> ratatui_testlib::Result<()> {
+    /// let mut harness = TuiTestHarness::new(80, 24)?;
+    /// harness.set_verbose(true);
+    ///
+    /// // All escape sequences will now be logged to stderr
+    /// harness.send_text("hello\n")?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn set_verbose(&mut self, verbose: bool) {
+        self.verbose = verbose;
+    }
+
+    /// Records an input event if recording is active.
+    fn record_input(&mut self, data: &[u8]) {
+        if self.recording {
+            if let Some(start) = self.recording_start {
+                let timestamp = start.elapsed();
+                self.recorded_events.push(TimestampedEvent {
+                    timestamp,
+                    event: RecordedEvent::Input(data.to_vec()),
+                });
+            }
+        }
+    }
+
+    /// Records an output event if recording is active.
+    fn record_output(&mut self, data: &[u8]) {
+        if self.recording {
+            if let Some(start) = self.recording_start {
+                let timestamp = start.elapsed();
+                self.recorded_events.push(TimestampedEvent {
+                    timestamp,
+                    event: RecordedEvent::Output(data.to_vec()),
+                });
+            }
+        }
+
+        // Verbose logging
+        if self.verbose {
+            eprintln!("[VERBOSE] Received {} bytes: {:?}", data.len(), data);
+            // Try to display as string if it's printable
+            if let Ok(s) = std::str::from_utf8(data) {
+                eprintln!("[VERBOSE] As string: {:?}", s);
+            }
+        }
+    }
+
+    /// Records a state change event if recording is active.
+    fn record_state_change(&mut self) {
+        if self.recording {
+            if let Some(start) = self.recording_start {
+                let timestamp = start.elapsed();
+                let contents = self.state.debug_contents();
+                let cursor = self.state.cursor_position();
+                self.recorded_events.push(TimestampedEvent {
+                    timestamp,
+                    event: RecordedEvent::StateChange { contents, cursor },
+                });
+            }
+        }
+    }
+
+    // =========================================================================
+    // Parallel Testing Support
+    // =========================================================================
+
+    /// Runs a test closure with an isolated terminal context.
+    ///
+    /// This method provides a simple way to run tests in isolation without
+    /// manually managing terminal acquisition and release. The closure receives
+    /// a mutable reference to the harness.
+    ///
+    /// # Arguments
+    ///
+    /// * `f` - Closure to run with the harness
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the closure returns an error.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use ratatui_testlib::TuiTestHarness;
+    /// use portable_pty::CommandBuilder;
+    ///
+    /// # fn test() -> ratatui_testlib::Result<()> {
+    /// TuiTestHarness::with_isolation(|harness| {
+    ///     let mut cmd = CommandBuilder::new("echo");
+    ///     cmd.arg("test");
+    ///     harness.spawn(cmd)?;
+    ///     harness.wait_for_text("test")?;
+    ///     Ok(())
+    /// })?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn with_isolation<F>(f: F) -> Result<()>
+    where
+        F: FnOnce(&mut TuiTestHarness) -> Result<()>,
+    {
+        let mut harness = TuiTestHarness::new(80, 24)?;
+        f(&mut harness)
+    }
+
+    /// Runs a test closure with an isolated terminal context and custom dimensions.
+    ///
+    /// This is similar to `with_isolation` but allows specifying custom terminal dimensions.
+    ///
+    /// # Arguments
+    ///
+    /// * `width` - Terminal width in columns
+    /// * `height` - Terminal height in rows
+    /// * `f` - Closure to run with the harness
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the closure returns an error.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use ratatui_testlib::TuiTestHarness;
+    /// use portable_pty::CommandBuilder;
+    ///
+    /// # fn test() -> ratatui_testlib::Result<()> {
+    /// TuiTestHarness::with_isolation_sized(100, 30, |harness| {
+    ///     let mut cmd = CommandBuilder::new("echo");
+    ///     cmd.arg("test");
+    ///     harness.spawn(cmd)?;
+    ///     harness.wait_for_text("test")?;
+    ///     Ok(())
+    /// })?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn with_isolation_sized<F>(width: u16, height: u16, f: F) -> Result<()>
+    where
+        F: FnOnce(&mut TuiTestHarness) -> Result<()>,
+    {
+        let mut harness = TuiTestHarness::new(width, height)?;
+        f(&mut harness)
+    }
+
+    /// Creates a builder for parallel-safe harness configuration.
+    ///
+    /// This builder ensures that all configuration is done before the harness
+    /// is created, making it safe to use in parallel test contexts.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use std::time::Duration;
+    /// use ratatui_testlib::TuiTestHarness;
+    ///
+    /// # fn test() -> ratatui_testlib::Result<()> {
+    /// let harness = TuiTestHarness::parallel_harness_builder()
+    ///     .with_size(100, 30)
+    ///     .with_timeout(Duration::from_secs(10))
+    ///     .build()?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn parallel_harness_builder() -> TuiTestHarnessBuilder {
+        TuiTestHarnessBuilder::default()
     }
 }
 
@@ -1471,8 +2581,9 @@ impl TuiTestHarness {
 /// # Example
 ///
 /// ```rust,no_run
-/// use ratatui_testlib::TuiTestHarness;
 /// use std::time::Duration;
+///
+/// use ratatui_testlib::TuiTestHarness;
 ///
 /// let mut harness = TuiTestHarness::builder()
 ///     .with_size(80, 24)
@@ -1489,6 +2600,7 @@ pub struct TuiTestHarnessBuilder {
     timeout: Duration,
     poll_interval: Duration,
     buffer_size: usize,
+    terminal_profile: TerminalProfile,
 }
 
 impl Default for TuiTestHarnessBuilder {
@@ -1499,6 +2611,7 @@ impl Default for TuiTestHarnessBuilder {
             timeout: DEFAULT_TIMEOUT,
             poll_interval: DEFAULT_POLL_INTERVAL,
             buffer_size: DEFAULT_BUFFER_SIZE,
+            terminal_profile: TerminalProfile::default(),
         }
     }
 }
@@ -1546,6 +2659,16 @@ impl TuiTestHarnessBuilder {
         self
     }
 
+    /// Sets the terminal profile.
+    ///
+    /// # Arguments
+    ///
+    /// * `profile` - The terminal profile to use
+    pub fn with_terminal_profile(mut self, profile: TerminalProfile) -> Self {
+        self.terminal_profile = profile;
+        self
+    }
+
     /// Builds the test harness with the configured settings.
     ///
     /// # Errors
@@ -1557,10 +2680,16 @@ impl TuiTestHarnessBuilder {
 
         Ok(TuiTestHarness {
             terminal,
+            event_delay: Duration::ZERO,
             state,
             timeout: self.timeout,
             poll_interval: self.poll_interval,
             buffer_size: self.buffer_size,
+            recording: false,
+            recorded_events: Vec::new(),
+            recording_start: None,
+            verbose: false,
+            terminal_profile: self.terminal_profile,
         })
     }
 }
@@ -1767,8 +2896,7 @@ mod tests {
 
     #[test]
     fn test_wait_for_text_success() -> Result<()> {
-        let mut harness = TuiTestHarness::new(80, 24)?
-            .with_timeout(Duration::from_secs(2));
+        let mut harness = TuiTestHarness::new(80, 24)?.with_timeout(Duration::from_secs(2));
 
         let mut cmd = CommandBuilder::new("echo");
         cmd.arg("hello world");
@@ -1782,8 +2910,10 @@ mod tests {
             }
             Err(TermTestError::ProcessExited) => {
                 // Process exited, but check if we still got the output
-                assert!(harness.screen_contents().contains("hello"),
-                    "Expected 'hello' in output even though process exited");
+                assert!(
+                    harness.screen_contents().contains("hello"),
+                    "Expected 'hello' in output even though process exited"
+                );
             }
             Err(e) => return Err(e),
         }
@@ -1831,8 +2961,10 @@ mod tests {
             }
             Err(TermTestError::ProcessExited) => {
                 // Process exited, but check if we still got the output
-                assert!(harness.screen_contents().contains("quick"),
-                    "Expected 'quick' in output even though process exited");
+                assert!(
+                    harness.screen_contents().contains("quick"),
+                    "Expected 'quick' in output even though process exited"
+                );
             }
             Err(e) => return Err(e),
         }
@@ -1858,7 +2990,11 @@ mod tests {
             Err(TermTestError::ProcessExited) => {
                 // No process running, but cursor should still be in the right position
                 let pos = harness.cursor_position();
-                assert_eq!(pos, (9, 19), "Cursor should be at (9, 19) even though no process is running");
+                assert_eq!(
+                    pos,
+                    (9, 19),
+                    "Cursor should be at (9, 19) even though no process is running"
+                );
             }
             Err(e) => return Err(e),
         }
@@ -1902,7 +3038,11 @@ mod tests {
             Err(TermTestError::ProcessExited) => {
                 // No process running, but cursor should still be in the right position
                 let pos = harness.cursor_position();
-                assert_eq!(pos, (4, 9), "Cursor should be at (4, 9) even though no process is running");
+                assert_eq!(
+                    pos,
+                    (4, 9),
+                    "Cursor should be at (4, 9) even though no process is running"
+                );
             }
             Err(e) => return Err(e),
         }
@@ -1911,8 +3051,7 @@ mod tests {
 
     #[test]
     fn test_wait_for_custom_predicate() -> Result<()> {
-        let mut harness = TuiTestHarness::new(80, 24)?
-            .with_timeout(Duration::from_secs(2));
+        let mut harness = TuiTestHarness::new(80, 24)?.with_timeout(Duration::from_secs(2));
 
         let mut cmd = CommandBuilder::new("echo");
         cmd.arg("test123");
@@ -1920,16 +3059,16 @@ mod tests {
 
         // Wait for custom condition: screen contains a digit
         // May return ProcessExited since echo exits immediately
-        match harness.wait_for(|state| {
-            state.contents().chars().any(|c| c.is_numeric())
-        }) {
+        match harness.wait_for(|state| state.contents().chars().any(|c| c.is_numeric())) {
             Ok(()) => {
                 assert!(harness.screen_contents().contains('1'));
             }
             Err(TermTestError::ProcessExited) => {
                 // Process exited, but check if we still got the output
-                assert!(harness.screen_contents().contains('1'),
-                    "Expected digit in output even though process exited");
+                assert!(
+                    harness.screen_contents().contains('1'),
+                    "Expected digit in output even though process exited"
+                );
             }
             Err(e) => return Err(e),
         }
@@ -1938,8 +3077,7 @@ mod tests {
 
     #[test]
     fn test_wait_for_multiline_output() -> Result<()> {
-        let mut harness = TuiTestHarness::new(80, 24)?
-            .with_timeout(Duration::from_secs(2));
+        let mut harness = TuiTestHarness::new(80, 24)?.with_timeout(Duration::from_secs(2));
 
         let mut cmd = CommandBuilder::new("sh");
         cmd.arg("-c");
@@ -1949,9 +3087,7 @@ mod tests {
         // Wait for all lines to appear - may return ProcessExited
         match harness.wait_for(|state| {
             let contents = state.contents();
-            contents.contains("line1") &&
-            contents.contains("line2") &&
-            contents.contains("line3")
+            contents.contains("line1") && contents.contains("line2") && contents.contains("line3")
         }) {
             Ok(()) => {
                 let contents = harness.screen_contents();
@@ -1973,8 +3109,7 @@ mod tests {
 
     #[test]
     fn test_wait_for_complex_predicate() -> Result<()> {
-        let mut harness = TuiTestHarness::new(80, 24)?
-            .with_timeout(Duration::from_secs(2));
+        let mut harness = TuiTestHarness::new(80, 24)?.with_timeout(Duration::from_secs(2));
 
         let mut cmd = CommandBuilder::new("echo");
         cmd.arg("Ready: 100%");
@@ -1990,8 +3125,10 @@ mod tests {
             }
             Err(TermTestError::ProcessExited) => {
                 // Process exited, but check if we still got the output
-                assert!(harness.screen_contents().contains("Ready: 100%"),
-                    "Expected 'Ready: 100%' in output even though process exited");
+                assert!(
+                    harness.screen_contents().contains("Ready: 100%"),
+                    "Expected 'Ready: 100%' in output even though process exited"
+                );
             }
             Err(e) => return Err(e),
         }
@@ -2021,8 +3158,7 @@ mod tests {
         }
 
         // Check that we got the data at some point
-        assert!(harness.screen_contents().contains("data"),
-            "Expected 'data' in output");
+        assert!(harness.screen_contents().contains("data"), "Expected 'data' in output");
         Ok(())
     }
 
@@ -2039,8 +3175,8 @@ mod tests {
         assert_eq!(harness.sixel_count(), 0);
 
         // Feed a Sixel sequence directly to the screen state
-        harness.state_mut().feed(b"\x1b[5;10H");  // Move cursor
-        harness.state_mut().feed(b"\x1bPq\"1;1;100;50#0~\x1b\\");  // Sixel sequence
+        harness.state_mut().feed(b"\x1b[5;10H"); // Move cursor
+        harness.state_mut().feed(b"\x1bPq\"1;1;100;50#0~\x1b\\"); // Sixel sequence
 
         // Should now have one Sixel
         assert_eq!(harness.sixel_count(), 1);
@@ -2061,15 +3197,15 @@ mod tests {
         let mut harness = TuiTestHarness::new(80, 24)?;
 
         // Feed Sixel with known dimensions
-        harness.state_mut().feed(b"\x1b[5;10H");  // Position (4, 9) in 0-based
+        harness.state_mut().feed(b"\x1b[5;10H"); // Position (4, 9) in 0-based
         harness.state_mut().feed(b"\x1bPq\"1;1;100;50#0~\x1b\\");
 
         let regions = harness.sixel_regions();
         assert_eq!(regions.len(), 1);
 
         let region = &regions[0];
-        assert_eq!(region.start_row, 4);  // 5-1 (CSI is 1-based, we use 0-based)
-        assert_eq!(region.start_col, 9);  // 10-1
+        assert_eq!(region.start_row, 4); // 5-1 (CSI is 1-based, we use 0-based)
+        assert_eq!(region.start_col, 9); // 10-1
         assert_eq!(region.width, 100);
         assert_eq!(region.height, 50);
 
@@ -2196,7 +3332,7 @@ mod tests {
         let mut harness = TuiTestHarness::new(80, 24)?;
 
         // Place Sixel in standard preview area (5, 40, 35, 15)
-        harness.state_mut().feed(b"\x1b[8;45H");  // Row 8, col 45 (within preview)
+        harness.state_mut().feed(b"\x1b[8;45H"); // Row 8, col 45 (within preview)
         harness.state_mut().feed(b"\x1bPq\"1;1;100;50#0~\x1b\\");
 
         // Should succeed as Sixel is in preview area
@@ -2211,7 +3347,7 @@ mod tests {
         let mut harness = TuiTestHarness::new(80, 24)?;
 
         // Place Sixel outside preview area
-        harness.state_mut().feed(b"\x1b[2;2H");  // Row 2, col 2 (outside preview)
+        harness.state_mut().feed(b"\x1b[2;2H"); // Row 2, col 2 (outside preview)
         harness.state_mut().feed(b"\x1bPq\"1;1;100;50#0~\x1b\\");
 
         // Should fail as Sixel is not in preview area
@@ -2232,7 +3368,7 @@ mod tests {
         // Place Sixel in custom area
         // Position (15, 60) [1-based CSI] = (14, 59) [0-based]
         // With dimensions 40x30 (small enough to fit within 60x25 area)
-        harness.state_mut().feed(b"\x1b[15;60H");  // Row 15, col 60
+        harness.state_mut().feed(b"\x1b[15;60H"); // Row 15, col 60
         harness.state_mut().feed(b"\x1bPq\"1;1;40;30#0~\x1b\\");
 
         // Should succeed - Sixel at (14, 59) with size 40x30 is within (10, 50, 60x25)
@@ -2272,7 +3408,7 @@ mod tests {
         let mut harness = TuiTestHarness::new(80, 24)?;
 
         // Place Sixel at screen edge
-        harness.state_mut().feed(b"\x1b[1;1H");  // Top-left corner
+        harness.state_mut().feed(b"\x1b[1;1H"); // Top-left corner
         harness.state_mut().feed(b"\x1bPq\"1;1;50;30#0~\x1b\\");
 
         assert_eq!(harness.sixel_count(), 1);
@@ -2668,6 +3804,259 @@ mod tests {
         // Each line should be found independently
         harness.assert_text_at_position("First", 4, 9)?;
         harness.assert_text_at_position("Second", 5, 9)?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_memory_usage() -> Result<()> {
+        let harness = TuiTestHarness::new(80, 24)?;
+
+        let memory = harness.memory_usage();
+
+        // Should have non-zero memory for screen buffer
+        assert!(memory.current_bytes > 0);
+        assert_eq!(memory.current_bytes, memory.peak_bytes);
+
+        // Basic sanity check: 80x24 screen should be reasonable size
+        // Each Cell is at least char (4 bytes) + options + bools
+        let min_expected = 80 * 24 * 4; // Very conservative estimate
+        assert!(memory.current_bytes >= min_expected);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_memory_usage_with_different_sizes() -> Result<()> {
+        let small = TuiTestHarness::new(20, 10)?;
+        let large = TuiTestHarness::new(200, 100)?;
+
+        let small_memory = small.memory_usage();
+        let large_memory = large.memory_usage();
+
+        // Larger terminal should use more memory
+        assert!(large_memory.current_bytes > small_memory.current_bytes);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_memory_usage_with_sixel() -> Result<()> {
+        use crate::screen::SixelRegion;
+
+        let mut harness = TuiTestHarness::new(80, 24)?;
+
+        // Get initial memory without Sixel
+        let initial_memory = harness.memory_usage();
+
+        // Add a mock Sixel region (simulate Sixel data)
+        let sixel_data = vec![0u8; 1000]; // 1KB of Sixel data
+        let region = SixelRegion {
+            start_row: 5,
+            start_col: 10,
+            width: 100,
+            height: 50,
+            data: sixel_data,
+        };
+
+        // Manually add the region to the state for testing
+        // Note: In real usage, this would come from parsing terminal output
+        harness.state_mut().sixel_regions_mut().push(region);
+
+        // Get memory with Sixel
+        let with_sixel_memory = harness.memory_usage();
+
+        // Memory should increase by approximately the size of the Sixel data
+        assert!(with_sixel_memory.current_bytes > initial_memory.current_bytes);
+        let increase = with_sixel_memory.current_bytes - initial_memory.current_bytes;
+        assert!(increase >= 1000); // Should be at least 1KB
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_assert_memory_under_success() -> Result<()> {
+        let harness = TuiTestHarness::new(80, 24)?;
+
+        // Set a generous limit that should pass
+        harness.assert_memory_under(1_000_000)?; // 1 MB
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_assert_memory_under_failure() -> Result<()> {
+        let harness = TuiTestHarness::new(80, 24)?;
+
+        // Set a very small limit that should fail
+        let result = harness.assert_memory_under(100); // 100 bytes
+
+        assert!(result.is_err());
+        if let Err(e) = result {
+            let error_msg = format!("{}", e);
+            assert!(error_msg.contains("Memory usage exceeds limit"));
+            assert!(error_msg.contains("100 bytes (limit)"));
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_memory_results_summary_format() -> Result<()> {
+        let harness = TuiTestHarness::new(80, 24)?;
+        let memory = harness.memory_usage();
+        let summary = memory.summary();
+
+        // Check that summary contains expected fields
+        assert!(summary.contains("Memory Usage"));
+        assert!(summary.contains("Current:"));
+        assert!(summary.contains("Peak:"));
+        assert!(summary.contains("bytes"));
+        assert!(summary.contains("KB"));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_memory_tracking_across_operations() -> Result<()> {
+        let mut harness = TuiTestHarness::new(80, 24)?;
+
+        let initial = harness.memory_usage();
+
+        // Feed some data to the screen
+        harness.state_mut().feed(b"Hello, World!");
+        harness.state_mut().feed(b"\x1b[2J"); // Clear screen
+        harness.state_mut().feed(b"More text");
+
+        let after_operations = harness.memory_usage();
+
+        // Memory should remain roughly the same (screen buffer size doesn't change)
+        // Allow for small variations due to internal state
+        let diff = if after_operations.current_bytes > initial.current_bytes {
+            after_operations.current_bytes - initial.current_bytes
+        } else {
+            initial.current_bytes - after_operations.current_bytes
+        };
+
+        // Should be within 10% of original
+        assert!(diff < initial.current_bytes / 10);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_event_delay_default() {
+        let harness = TuiTestHarness::new(80, 24).unwrap();
+        // Default should be zero
+        assert_eq!(harness.event_delay(), Duration::ZERO);
+    }
+
+    #[test]
+    fn test_set_event_delay() {
+        let mut harness = TuiTestHarness::new(80, 24).unwrap();
+
+        // Set a custom delay
+        harness.set_event_delay(Duration::from_millis(100));
+        assert_eq!(harness.event_delay(), Duration::from_millis(100));
+
+        // Change it
+        harness.set_event_delay(Duration::from_millis(200));
+        assert_eq!(harness.event_delay(), Duration::from_millis(200));
+
+        // Reset to zero
+        harness.set_event_delay(Duration::ZERO);
+        assert_eq!(harness.event_delay(), Duration::ZERO);
+    }
+
+    #[test]
+    fn test_advance_time() -> Result<()> {
+        let mut harness = TuiTestHarness::new(80, 24)?;
+
+        // advance_time should succeed
+        let start = Instant::now();
+        harness.advance_time(Duration::from_millis(100))?;
+        let elapsed = start.elapsed();
+
+        // Should have actually waited (with some tolerance for scheduling)
+        assert!(elapsed >= Duration::from_millis(95));
+        assert!(elapsed <= Duration::from_millis(200));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_press_key_repeat() -> Result<()> {
+        let mut harness = TuiTestHarness::new(80, 24)?;
+
+        // Test that press_key_repeat sends multiple keys
+        let start = Instant::now();
+        harness.press_key_repeat('a', 3, Duration::from_millis(50))?;
+        let elapsed = start.elapsed();
+
+        // Should take at least 3 * 50ms = 150ms
+        // (plus the default 50ms delay after each key from send_key_event)
+        // Total: ~300ms minimum
+        assert!(elapsed >= Duration::from_millis(250));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_event_delay_affects_timing() -> Result<()> {
+        let mut harness = TuiTestHarness::new(80, 24)?;
+
+        // With custom delay
+        harness.set_event_delay(Duration::from_millis(100));
+
+        let start = Instant::now();
+        // Send 3 characters
+        harness.send_keys("abc")?;
+        let elapsed = start.elapsed();
+
+        // Each key should take 100ms, so 3 keys = ~300ms
+        assert!(elapsed >= Duration::from_millis(250));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_press_key_repeat_with_zero_interval() -> Result<()> {
+        let mut harness = TuiTestHarness::new(80, 24)?;
+
+        // Should work with zero interval (only default key delay applies)
+        let start = Instant::now();
+        harness.press_key_repeat('x', 2, Duration::ZERO)?;
+        let elapsed = start.elapsed();
+
+        // Should still take time due to the default 50ms delay in send_key_event
+        // 2 keys * 50ms = ~100ms minimum
+        assert!(elapsed >= Duration::from_millis(80));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_timing_combination() -> Result<()> {
+        let mut harness = TuiTestHarness::new(80, 24)?;
+
+        // Test combining different timing methods
+        harness.set_event_delay(Duration::from_millis(50));
+
+        let start = Instant::now();
+
+        // Send a key (50ms delay)
+        harness.send_key(KeyCode::Char('a'))?;
+
+        // Advance time (100ms)
+        harness.advance_time(Duration::from_millis(100))?;
+
+        // Send repeated keys (2 * 50ms interval + 2 * 50ms event delay = 200ms)
+        harness.press_key_repeat('b', 2, Duration::from_millis(50))?;
+
+        let elapsed = start.elapsed();
+
+        // Total: 50 + 100 + 200 = 350ms minimum
+        assert!(elapsed >= Duration::from_millis(300));
 
         Ok(())
     }

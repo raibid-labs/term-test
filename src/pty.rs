@@ -3,11 +3,15 @@
 //! This module provides a wrapper around `portable-pty` for creating and managing
 //! pseudo-terminals used in testing TUI applications.
 
-use crate::error::{Result, TermTestError};
+use std::{
+    io::{ErrorKind, Read, Write},
+    sync::mpsc,
+    time::{Duration, Instant},
+};
+
 use portable_pty::{Child, CommandBuilder, ExitStatus, PtyPair, PtySize};
-use std::io::{ErrorKind, Read, Write};
-use std::sync::mpsc;
-use std::time::{Duration, Instant};
+
+use crate::error::{Result, TermTestError};
 
 /// Default buffer size for reading PTY output.
 const DEFAULT_BUFFER_SIZE: usize = 8192;
@@ -24,6 +28,7 @@ pub struct TestTerminal {
     child: Option<Box<dyn Child + Send + Sync>>,
     exit_status: Option<ExitStatus>,
     buffer_size: usize,
+    writer: Option<Box<dyn Write + Send>>,
 }
 
 impl TestTerminal {
@@ -66,6 +71,7 @@ impl TestTerminal {
             child: None,
             exit_status: None,
             buffer_size: DEFAULT_BUFFER_SIZE,
+            writer: None,
         })
     }
 
@@ -80,8 +86,7 @@ impl TestTerminal {
     /// ```rust,no_run
     /// use ratatui_testlib::TestTerminal;
     ///
-    /// let mut terminal = TestTerminal::new(80, 24)?
-    ///     .with_buffer_size(16384);
+    /// let mut terminal = TestTerminal::new(80, 24)?.with_buffer_size(16384);
     /// # Ok::<(), ratatui_testlib::TermTestError>(())
     /// ```
     pub fn with_buffer_size(mut self, size: usize) -> Self {
@@ -104,8 +109,8 @@ impl TestTerminal {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use ratatui_testlib::TestTerminal;
     /// use portable_pty::CommandBuilder;
+    /// use ratatui_testlib::TestTerminal;
     ///
     /// let mut terminal = TestTerminal::new(80, 24)?;
     /// let mut cmd = CommandBuilder::new("ls");
@@ -137,9 +142,10 @@ impl TestTerminal {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use ratatui_testlib::TestTerminal;
-    /// use portable_pty::CommandBuilder;
     /// use std::time::Duration;
+    ///
+    /// use portable_pty::CommandBuilder;
+    /// use ratatui_testlib::TestTerminal;
     ///
     /// let mut terminal = TestTerminal::new(80, 24)?;
     /// let mut cmd = CommandBuilder::new("bash");
@@ -156,22 +162,13 @@ impl TestTerminal {
         let start = Instant::now();
 
         // Spawn the command
-        let child = self
-            .pty_pair
-            .slave
-            .spawn_command(cmd)
-            .map_err(|e| {
-                TermTestError::SpawnFailed(format!(
-                    "Failed to spawn process in PTY: {}",
-                    e
-                ))
-            })?;
+        let child = self.pty_pair.slave.spawn_command(cmd).map_err(|e| {
+            TermTestError::SpawnFailed(format!("Failed to spawn process in PTY: {}", e))
+        })?;
 
         // Verify spawn completed within timeout
         if start.elapsed() > timeout {
-            return Err(TermTestError::Timeout {
-                timeout_ms: timeout.as_millis() as u64,
-            });
+            return Err(TermTestError::Timeout { timeout_ms: timeout.as_millis() as u64 });
         }
 
         self.child = Some(child);
@@ -211,10 +208,12 @@ impl TestTerminal {
         // This ensures we return quickly when no data is available
         let read_timeout = Duration::from_millis(100);
 
-        let mut reader = self.pty_pair.master.try_clone_reader()
-            .map_err(|e| TermTestError::Io(
-                std::io::Error::new(ErrorKind::Other, format!("Failed to clone PTY reader: {}", e))
-            ))?;
+        let mut reader = self.pty_pair.master.try_clone_reader().map_err(|e| {
+            TermTestError::Io(std::io::Error::new(
+                ErrorKind::Other,
+                format!("Failed to clone PTY reader: {}", e),
+            ))
+        })?;
 
         // Use a channel to implement timeout on blocking read
         let (tx, rx) = mpsc::channel();
@@ -274,8 +273,9 @@ impl TestTerminal {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use ratatui_testlib::TestTerminal;
     /// use std::time::Duration;
+    ///
+    /// use ratatui_testlib::TestTerminal;
     ///
     /// let mut terminal = TestTerminal::new(80, 24)?;
     /// let mut buf = [0u8; 1024];
@@ -360,10 +360,17 @@ impl TestTerminal {
     /// # Ok::<(), ratatui_testlib::TermTestError>(())
     /// ```
     pub fn write(&mut self, data: &[u8]) -> Result<usize> {
-        let mut writer = self.pty_pair.master.take_writer()
-            .map_err(|e| TermTestError::Io(
-                std::io::Error::new(ErrorKind::Other, format!("Failed to get PTY writer: {}", e))
-            ))?;
+        // Get or create the writer (take_writer can only be called once)
+        if self.writer.is_none() {
+            self.writer = Some(self.pty_pair.master.take_writer().map_err(|e| {
+                TermTestError::Io(std::io::Error::new(
+                    ErrorKind::Other,
+                    format!("Failed to take PTY writer: {}", e),
+                ))
+            })?);
+        }
+
+        let writer = self.writer.as_mut().unwrap();
 
         loop {
             match writer.write(data) {
@@ -387,13 +394,20 @@ impl TestTerminal {
     ///
     /// Returns an error if the write operation fails.
     pub fn write_all(&mut self, data: &[u8]) -> Result<()> {
-        let mut writer = self.pty_pair.master.take_writer()
-            .map_err(|e| TermTestError::Io(
-                std::io::Error::new(ErrorKind::Other, format!("Failed to get PTY writer: {}", e))
-            ))?;
+        // Get or create the writer (take_writer can only be called once)
+        if self.writer.is_none() {
+            self.writer = Some(self.pty_pair.master.take_writer().map_err(|e| {
+                TermTestError::Io(std::io::Error::new(
+                    ErrorKind::Other,
+                    format!("Failed to take PTY writer: {}", e),
+                ))
+            })?);
+        }
+
+        let writer = self.writer.as_mut().unwrap();
 
         loop {
-            match writer.write_all(data) {
+            match std::io::Write::write_all(writer, data) {
                 Ok(()) => return Ok(()),
                 Err(e) if e.kind() == ErrorKind::Interrupted => {
                     // EINTR: system call was interrupted, retry
@@ -444,8 +458,8 @@ impl TestTerminal {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use ratatui_testlib::TestTerminal;
     /// use portable_pty::CommandBuilder;
+    /// use ratatui_testlib::TestTerminal;
     ///
     /// let mut terminal = TestTerminal::new(80, 24)?;
     /// let cmd = CommandBuilder::new("sleep");
@@ -487,8 +501,8 @@ impl TestTerminal {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use ratatui_testlib::TestTerminal;
     /// use portable_pty::CommandBuilder;
+    /// use ratatui_testlib::TestTerminal;
     ///
     /// let mut terminal = TestTerminal::new(80, 24)?;
     /// let cmd = CommandBuilder::new("sleep");
@@ -516,9 +530,12 @@ impl TestTerminal {
             // Remove child reference so Drop doesn't try to kill again
             self.child = None;
 
-            kill_result.map_err(|e| TermTestError::Io(
-                std::io::Error::new(ErrorKind::Other, format!("Failed to kill child process: {}", e))
-            ))
+            kill_result.map_err(|e| {
+                TermTestError::Io(std::io::Error::new(
+                    ErrorKind::Other,
+                    format!("Failed to kill child process: {}", e),
+                ))
+            })
         } else {
             Err(TermTestError::NoProcessRunning)
         }
@@ -533,8 +550,8 @@ impl TestTerminal {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use ratatui_testlib::TestTerminal;
     /// use portable_pty::CommandBuilder;
+    /// use ratatui_testlib::TestTerminal;
     ///
     /// let mut terminal = TestTerminal::new(80, 24)?;
     /// let mut cmd = CommandBuilder::new("echo");
@@ -545,9 +562,12 @@ impl TestTerminal {
     /// ```
     pub fn wait(&mut self) -> Result<ExitStatus> {
         if let Some(mut child) = self.child.take() {
-            let status = child
-                .wait()
-                .map_err(|e| TermTestError::Io(std::io::Error::new(ErrorKind::Other, format!("Failed to wait for child process: {}", e))))?;
+            let status = child.wait().map_err(|e| {
+                TermTestError::Io(std::io::Error::new(
+                    ErrorKind::Other,
+                    format!("Failed to wait for child process: {}", e),
+                ))
+            })?;
 
             self.exit_status = Some(status.clone());
             Ok(status)
@@ -571,9 +591,10 @@ impl TestTerminal {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use ratatui_testlib::TestTerminal;
-    /// use portable_pty::CommandBuilder;
     /// use std::time::Duration;
+    ///
+    /// use portable_pty::CommandBuilder;
+    /// use ratatui_testlib::TestTerminal;
     ///
     /// let mut terminal = TestTerminal::new(80, 24)?;
     /// let mut cmd = CommandBuilder::new("echo");
@@ -608,9 +629,10 @@ impl TestTerminal {
                         std::thread::sleep(poll_interval);
                     }
                     Err(e) => {
-                        return Err(TermTestError::Io(
-                            std::io::Error::new(ErrorKind::Other, format!("Failed to check process status: {}", e))
-                        ));
+                        return Err(TermTestError::Io(std::io::Error::new(
+                            ErrorKind::Other,
+                            format!("Failed to check process status: {}", e),
+                        )));
                     }
                 }
             } else {
@@ -627,8 +649,8 @@ impl TestTerminal {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use ratatui_testlib::TestTerminal;
     /// use portable_pty::CommandBuilder;
+    /// use ratatui_testlib::TestTerminal;
     ///
     /// let mut terminal = TestTerminal::new(80, 24)?;
     /// let cmd = CommandBuilder::new("echo");
@@ -656,8 +678,9 @@ impl Drop for TestTerminal {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::thread;
+
+    use super::*;
 
     #[test]
     fn test_create_terminal() {
@@ -667,25 +690,17 @@ mod tests {
 
     #[test]
     fn test_create_terminal_with_custom_buffer() {
-        let terminal = TestTerminal::new(80, 24)
-            .unwrap()
-            .with_buffer_size(16384);
+        let terminal = TestTerminal::new(80, 24).unwrap().with_buffer_size(16384);
         assert_eq!(terminal.buffer_size, 16384);
     }
 
     #[test]
     fn test_invalid_dimensions() {
         let result = TestTerminal::new(0, 24);
-        assert!(matches!(
-            result,
-            Err(TermTestError::InvalidDimensions { .. })
-        ));
+        assert!(matches!(result, Err(TermTestError::InvalidDimensions { .. })));
 
         let result = TestTerminal::new(80, 0);
-        assert!(matches!(
-            result,
-            Err(TermTestError::InvalidDimensions { .. })
-        ));
+        assert!(matches!(result, Err(TermTestError::InvalidDimensions { .. })));
     }
 
     #[test]
@@ -713,7 +728,9 @@ mod tests {
 
         // Read output with timeout instead of read_all
         let mut buffer = vec![0u8; 4096];
-        let bytes_read = terminal.read_timeout(&mut buffer, Duration::from_millis(500)).unwrap();
+        let bytes_read = terminal
+            .read_timeout(&mut buffer, Duration::from_millis(500))
+            .unwrap();
         let output_str = String::from_utf8_lossy(&buffer[..bytes_read]);
         assert!(output_str.contains("hello_world"));
     }
@@ -830,7 +847,9 @@ mod tests {
 
         // Use read_timeout instead of blocking read_all
         let mut buffer = vec![0u8; 4096];
-        let bytes_read = terminal.read_timeout(&mut buffer, Duration::from_millis(500)).unwrap_or(0);
+        let bytes_read = terminal
+            .read_timeout(&mut buffer, Duration::from_millis(500))
+            .unwrap_or(0);
         let output_str = String::from_utf8_lossy(&buffer[..bytes_read]);
         assert!(output_str.contains("test output"));
     }
@@ -929,7 +948,9 @@ mod tests {
 
         // Use read_timeout instead of blocking read_all
         let mut buffer = vec![0u8; 4096];
-        let bytes_read = terminal.read_timeout(&mut buffer, Duration::from_millis(500)).unwrap_or(0);
+        let bytes_read = terminal
+            .read_timeout(&mut buffer, Duration::from_millis(500))
+            .unwrap_or(0);
         let output_str = String::from_utf8_lossy(&buffer[..bytes_read]);
         assert!(output_str.contains("complete message"));
     }

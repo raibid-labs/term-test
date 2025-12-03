@@ -23,6 +23,7 @@
 //! ```
 
 use std::io;
+
 use thiserror::Error;
 
 /// Result type alias for ratatui_testlib operations.
@@ -86,12 +87,12 @@ pub enum TermTestError {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use ratatui_testlib::{TuiTestHarness, TermTestError};
     /// use std::time::Duration;
     ///
+    /// use ratatui_testlib::{TermTestError, TuiTestHarness};
+    ///
     /// # fn test() -> ratatui_testlib::Result<()> {
-    /// let mut harness = TuiTestHarness::new(80, 24)?
-    ///     .with_timeout(Duration::from_secs(1));
+    /// let mut harness = TuiTestHarness::new(80, 24)?.with_timeout(Duration::from_secs(1));
     ///
     /// match harness.wait_for_text("Never appears") {
     ///     Err(TermTestError::Timeout { timeout_ms }) => {
@@ -226,10 +227,7 @@ mod tests {
 
     #[test]
     fn test_invalid_dimensions_error() {
-        let err = TermTestError::InvalidDimensions {
-            width: 0,
-            height: 24,
-        };
+        let err = TermTestError::InvalidDimensions { width: 0, height: 24 };
         let msg = err.to_string();
 
         assert!(msg.contains("Invalid"));

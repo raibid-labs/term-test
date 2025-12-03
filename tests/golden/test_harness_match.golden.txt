@@ -1,0 +1,29 @@
+--- GOLDEN FILE ---
+test: test_harness_match
+size: 80x24
+timestamp: 2025-12-03T05:48:04Z
+--- CONTENT ---
+Golden harness test                                                             
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
