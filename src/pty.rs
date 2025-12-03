@@ -6,6 +6,7 @@
 use crate::error::{Result, TermTestError};
 use portable_pty::{Child, CommandBuilder, ExitStatus, PtyPair, PtySize};
 use std::io::{ErrorKind, Read, Write};
+use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
 /// Default buffer size for reading PTY output.
@@ -206,23 +207,49 @@ impl TestTerminal {
     /// # Ok::<(), ratatui_testlib::TermTestError>(())
     /// ```
     pub fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
+        // Use a short timeout (100ms) to prevent blocking forever
+        // This ensures we return quickly when no data is available
+        let read_timeout = Duration::from_millis(100);
+
         let mut reader = self.pty_pair.master.try_clone_reader()
             .map_err(|e| TermTestError::Io(
                 std::io::Error::new(ErrorKind::Other, format!("Failed to clone PTY reader: {}", e))
             ))?;
 
-        loop {
-            match reader.read(buf) {
-                Ok(n) => return Ok(n),
-                Err(e) if e.kind() == ErrorKind::Interrupted => {
-                    // EINTR: system call was interrupted, retry
-                    continue;
+        // Use a channel to implement timeout on blocking read
+        let (tx, rx) = mpsc::channel();
+        let buf_len = buf.len();
+
+        std::thread::spawn(move || {
+            let mut local_buf = vec![0u8; buf_len];
+            let result = reader.read(&mut local_buf);
+            let _ = tx.send((result, local_buf));
+        });
+
+        match rx.recv_timeout(read_timeout) {
+            Ok((Ok(n), local_buf)) => {
+                if n > 0 {
+                    buf[..n].copy_from_slice(&local_buf[..n]);
                 }
-                Err(e) if e.kind() == ErrorKind::WouldBlock => {
-                    // EAGAIN/EWOULDBLOCK: no data available
-                    return Ok(0);
+                Ok(n)
+            }
+            Ok((Err(e), _)) => {
+                if e.kind() == ErrorKind::Interrupted {
+                    // Retry on interrupt - but return 0 to let caller retry
+                    Ok(0)
+                } else if e.kind() == ErrorKind::WouldBlock {
+                    Ok(0)
+                } else {
+                    Err(TermTestError::Io(e))
                 }
-                Err(e) => return Err(TermTestError::Io(e)),
+            }
+            Err(mpsc::RecvTimeoutError::Timeout) => {
+                // No data available within timeout - return 0 (non-blocking behavior)
+                Ok(0)
+            }
+            Err(mpsc::RecvTimeoutError::Disconnected) => {
+                // Thread panicked or channel closed
+                Ok(0)
             }
         }
     }

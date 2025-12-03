@@ -173,6 +173,14 @@ pub enum TermTestError {
         height: u16,
     },
 
+    /// Process has exited.
+    ///
+    /// This error is returned when attempting to read from or interact with a PTY
+    /// whose child process has already terminated. This prevents infinite loops
+    /// in wait operations when the process exits unexpectedly.
+    #[error("Child process has exited")]
+    ProcessExited,
+
     /// Bevy ECS-specific errors.
     ///
     /// This error occurs for Bevy-related failures when using the `bevy` feature,
@@ -261,6 +269,15 @@ mod tests {
 
         assert!(matches!(term_err, TermTestError::Pty(_)));
         assert!(term_err.to_string().contains("test anyhow error"));
+    }
+
+    #[test]
+    fn test_process_exited_error() {
+        let err = TermTestError::ProcessExited;
+        let msg = err.to_string();
+
+        assert!(msg.contains("exited"));
+        assert!(msg.contains("Child process"));
     }
 
     #[cfg(feature = "sixel")]
