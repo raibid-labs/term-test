@@ -20,6 +20,7 @@ anyhow = "1.0"
 bitflags = "2.4"
 similar = "2.3"
 chrono = "0.4"
+regex = "1.10"
 
 # MVP dependencies (feature-gated)
 tokio = { version = "1.35", optional = true, features = ["full"] }

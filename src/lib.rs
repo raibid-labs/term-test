@@ -186,6 +186,7 @@ mod error;
 pub mod events;
 pub mod golden;
 mod harness;
+pub mod navigation;
 pub mod parallel;
 mod pty;
 mod screen;
