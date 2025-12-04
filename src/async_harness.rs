@@ -96,6 +96,16 @@ impl AsyncTuiTestHarness {
         Ok(())
     }
 
+    /// Types a text string by sending each character as a key event.
+    ///
+    /// This is an alias for `send_keys` in the synchronous harness.
+    pub async fn type_text(&mut self, text: &str) -> Result<()> {
+        let inner = self.inner.clone();
+        let text = text.to_string();
+        spawn_blocking(move || inner.lock().unwrap().type_text(&text)).await??;
+        Ok(())
+    }
+
     /// Sends a key event.
     pub async fn send_key(&mut self, key: KeyCode) -> Result<()> {
         let inner = self.inner.clone();

@@ -620,6 +620,28 @@ impl TuiTestHarness {
         Ok(())
     }
 
+    /// Alias for [`send_keys`](Self::send_keys).
+    ///
+    /// Types a text string by sending each character as a key event.
+    /// This method is provided for semantic clarity when "typing" text
+    /// is the intent, as opposed to sending a block of text (via `send_text`)
+    /// or specific key codes.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use ratatui_testlib::TuiTestHarness;
+    ///
+    /// # fn test() -> ratatui_testlib::Result<()> {
+    /// let mut harness = TuiTestHarness::new(80, 24)?;
+    /// harness.type_text("typing speed simulation")?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn type_text(&mut self, text: &str) -> Result<()> {
+        self.send_keys(text)
+    }
+
     /// Sets the delay between consecutive events.
     ///
     /// This configures how long the harness waits after sending each event before
