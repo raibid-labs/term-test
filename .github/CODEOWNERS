@@ -1,0 +1,25 @@
+# CODEOWNERS - Code ownership and review requirements
+# See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owners for everything in the repo
+# These owners will be requested for review when someone opens a pull request
+* @beengud
+
+# CI/CD workflows - require approval for changes to automation
+/.github/workflows/ @beengud
+
+# Release-related files - critical for version management
+/Cargo.toml @beengud
+/CHANGELOG.md @beengud
+/docs/RELEASE.md @beengud
+
+# Documentation structure - ensure quality and consistency
+/docs/STRUCTURE.md @beengud
+/docs/versions/ @beengud
+
+# Core library code - require careful review
+/src/ @beengud
+
+# Security and dependency files
+/Cargo.lock @beengud
+/.github/dependabot.yml @beengud
