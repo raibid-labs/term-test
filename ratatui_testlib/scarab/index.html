@@ -1,0 +1,71 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Scarab-specific IPC and shared-memory helpers."><title>ratatui_testlib::scarab - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-e56847b5.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="ratatui_testlib" data-themes="" data-resource-suffix="" data-rustdoc-version="1.91.1 (ed61e7d7e 2025-11-07)" data-channel="1.91.1" data-search-js="search-e256b49e.js" data-stringdex-js="stringdex-c3e638e9.js" data-settings-js="settings-c38705f0.js" ><script src="../../static.files/storage-e2aeef58.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../static.files/main-6dc2a7f3.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Module scarab</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../ratatui_testlib/index.html">ratatui_<wbr>testlib</a><span class="version">0.4.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module scarab</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#overview" title="Overview">Overview</a></li><li><a href="#quick-start" title="Quick Start">Quick Start</a><ul><li><a href="#enable-the-feature" title="Enable the feature">Enable the feature</a></li><li><a href="#environment-variable" title="Environment Variable">Environment Variable</a></li><li><a href="#basic-test-example" title="Basic Test Example">Basic Test Example</a></li></ul></li><li><a href="#default-configuration" title="Default Configuration">Default Configuration</a></li><li><a href="#custom-configuration" title="Custom Configuration">Custom Configuration</a></li><li><a href="#testing-patterns" title="Testing Patterns">Testing Patterns</a><ul><li><a href="#pattern-1-wait-for-shell-prompt" title="Pattern 1: Wait for Shell Prompt">Pattern 1: Wait for Shell Prompt</a></li><li><a href="#pattern-2-test-escape-sequences" title="Pattern 2: Test Escape Sequences">Pattern 2: Test Escape Sequences</a></li></ul></li></ul><h3><a href="#structs">Module Items</a></h3><ul class="block"><li><a href="#structs" title="Structs">Structs</a></li><li><a href="#traits" title="Traits">Traits</a></li></ul></section><div id="rustdoc-modnav"><h2 class="in-crate"><a href="../index.html">In crate ratatui_<wbr>testlib</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../index.html">ratatui_testlib</a></div><h1>Module <span>scarab</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../src/ratatui_testlib/scarab.rs.html#1-642">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Scarab-specific IPC and shared-memory helpers.</p>
+<p>This module provides Scarab-tailored wrappers around the generic <a href="../ipc/index.html" title="mod ratatui_testlib::ipc"><code>ipc</code></a> module,
+preconfigured for Scarab’s default paths and protocol.</p>
+<h2 id="overview"><a class="doc-anchor" href="#overview">§</a>Overview</h2>
+<p>Scarab uses a split architecture (daemon + GPU client) where:</p>
+<ul>
+<li><strong>scarab-daemon</strong> manages the PTY, parses terminal state, and exposes it via shared memory</li>
+<li><strong>scarab</strong> (GPU client) renders the UI by reading from shared memory</li>
+</ul>
+<p>This module provides the glue to test Scarab without reimplementing IPC/shared-memory plumbing.</p>
+<h2 id="quick-start"><a class="doc-anchor" href="#quick-start">§</a>Quick Start</h2><h3 id="enable-the-feature"><a class="doc-anchor" href="#enable-the-feature">§</a>Enable the feature</h3><div class="example-wrap"><pre class="language-toml"><code>[dependencies]
+ratatui-testlib = { version = &quot;0.3&quot;, features = [&quot;scarab&quot;] }</code></pre></div><h3 id="environment-variable"><a class="doc-anchor" href="#environment-variable">§</a>Environment Variable</h3>
+<p>Enable Scarab testing mode by setting:</p>
+<div class="example-wrap"><pre class="language-bash"><code>export SCARAB_TEST_RTL=1</code></pre></div><h3 id="basic-test-example"><a class="doc-anchor" href="#basic-test-example">§</a>Basic Test Example</h3>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>std::time::Duration;
+<span class="kw">use </span>ratatui_testlib::scarab::ScarabTestHarness;
+
+<span class="comment">// Connect to running scarab-daemon using default paths
+</span><span class="kw">let </span><span class="kw-2">mut </span>harness = ScarabTestHarness::connect()<span class="question-mark">?</span>;
+
+<span class="comment">// Send input via IPC
+</span>harness.send_input(<span class="string">"echo hello\n"</span>)<span class="question-mark">?</span>;
+
+<span class="comment">// Wait for output in shared memory grid
+</span>harness.wait_for_text(<span class="string">"hello"</span>, Duration::from_secs(<span class="number">5</span>))<span class="question-mark">?</span>;
+
+<span class="comment">// Assert grid contents
+</span><span class="kw">let </span>grid = harness.grid_contents()<span class="question-mark">?</span>;
+<span class="macro">assert!</span>(grid.contains(<span class="string">"hello"</span>));</code></pre></div><h2 id="default-configuration"><a class="doc-anchor" href="#default-configuration">§</a>Default Configuration</h2>
+<p>Scarab uses these default paths:</p>
+<ul>
+<li>Socket: <code>/tmp/scarab-daemon.sock</code></li>
+<li>Shared memory: <code>/scarab_shm_v1</code></li>
+<li>Image buffer: <code>/scarab_img_v1</code></li>
+<li>Magic number: <code>0x5343_5241</code> (“SCRA”)</li>
+</ul>
+<h2 id="custom-configuration"><a class="doc-anchor" href="#custom-configuration">§</a>Custom Configuration</h2>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>std::time::Duration;
+<span class="kw">use </span>ratatui_testlib::scarab::{ScarabTestHarness, ScarabConfig};
+
+<span class="kw">let </span>config = ScarabConfig::builder()
+    .socket_path(<span class="string">"/tmp/test-scarab.sock"</span>)
+    .shm_path(<span class="string">"/test_scarab_shm"</span>)
+    .dimensions(<span class="number">120</span>, <span class="number">40</span>)
+    .build();
+
+<span class="kw">let </span><span class="kw-2">mut </span>harness = ScarabTestHarness::with_config(config)<span class="question-mark">?</span>;</code></pre></div><h2 id="testing-patterns"><a class="doc-anchor" href="#testing-patterns">§</a>Testing Patterns</h2><h3 id="pattern-1-wait-for-shell-prompt"><a class="doc-anchor" href="#pattern-1-wait-for-shell-prompt">§</a>Pattern 1: Wait for Shell Prompt</h3>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>std::time::Duration;
+<span class="kw">use </span>ratatui_testlib::scarab::ScarabTestHarness;
+
+<span class="kw">let </span><span class="kw-2">mut </span>harness = ScarabTestHarness::connect()<span class="question-mark">?</span>;
+
+<span class="comment">// Wait for shell prompt
+</span>harness.wait_for_prompt(Duration::from_secs(<span class="number">5</span>))<span class="question-mark">?</span>;
+
+<span class="comment">// Send command
+</span>harness.send_input(<span class="string">"ls -la\n"</span>)<span class="question-mark">?</span>;
+
+<span class="comment">// Wait for output and next prompt
+</span>harness.wait_for_text(<span class="string">"total"</span>, Duration::from_secs(<span class="number">2</span>))<span class="question-mark">?</span>;</code></pre></div><h3 id="pattern-2-test-escape-sequences"><a class="doc-anchor" href="#pattern-2-test-escape-sequences">§</a>Pattern 2: Test Escape Sequences</h3>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>std::time::Duration;
+<span class="kw">use </span>ratatui_testlib::scarab::ScarabTestHarness;
+
+<span class="kw">let </span><span class="kw-2">mut </span>harness = ScarabTestHarness::connect()<span class="question-mark">?</span>;
+
+<span class="comment">// Send cursor movement
+</span>harness.send_input(<span class="string">"\x1b[A"</span>)<span class="question-mark">?</span>; <span class="comment">// Up arrow
+
+// Verify cursor position changed
+</span><span class="kw">let </span>(row, _col) = harness.cursor_position()<span class="question-mark">?</span>;
+<span class="macro">println!</span>(<span class="string">"Cursor at row: {}"</span>, row);</code></pre></div></div></details><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.ScarabConfig.html" title="struct ratatui_testlib::scarab::ScarabConfig">Scarab<wbr>Config</a></dt><dd>Scarab-specific configuration.</dd><dt><a class="struct" href="struct.ScarabConfigBuilder.html" title="struct ratatui_testlib::scarab::ScarabConfigBuilder">Scarab<wbr>Config<wbr>Builder</a></dt><dd>Builder for ScarabConfig.</dd><dt><a class="struct" href="struct.ScarabSharedMemory.html" title="struct ratatui_testlib::scarab::ScarabSharedMemory">Scarab<wbr>Shared<wbr>Memory</a></dt><dd>Scarab-specific shared memory reader.</dd><dt><a class="struct" href="struct.ScarabTestHarness.html" title="struct ratatui_testlib::scarab::ScarabTestHarness">Scarab<wbr>Test<wbr>Harness</a></dt><dd>Scarab test harness for integration testing.</dd></dl><h2 id="traits" class="section-header">Traits<a href="#traits" class="anchor">§</a></h2><dl class="item-table"><dt><a class="trait" href="trait.ScarabTestExt.html" title="trait ratatui_testlib::scarab::ScarabTestExt">Scarab<wbr>Test<wbr>Ext</a></dt><dd>Extension trait for integrating Scarab testing with TuiTestHarness.</dd></dl></section></div></main></body></html>
