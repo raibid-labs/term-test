@@ -206,6 +206,9 @@ pub mod bevy;
 #[cfg(feature = "shared-state")]
 pub mod shared_state;
 
+#[cfg(feature = "ipc")]
+pub mod ipc;
+
 #[cfg(feature = "async-tokio")]
 mod async_harness;
 
@@ -257,3 +260,9 @@ pub use graphics::{GraphicsCapture, GraphicsProtocol, GraphicsRegion};
 pub use portable_pty::CommandBuilder;
 #[cfg(feature = "sixel")]
 pub use sixel::{SixelCapture, SixelSequence};
+
+#[cfg(feature = "ipc")]
+pub use ipc::{
+    ControlMessage, DaemonConfig, DaemonConfigBuilder, DaemonIpcClient, DaemonTestExt,
+    DaemonTestHarness, IpcError, IpcResult, ShmHeader,
+};
