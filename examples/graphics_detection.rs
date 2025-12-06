@@ -8,8 +8,10 @@
 //! cargo run --example graphics_detection --features sixel
 //! ```
 
-use ratatui_testlib::graphics::{GraphicsCapture, GraphicsProtocol};
-use ratatui_testlib::{ScreenState, SixelRegion, KittyRegion, ITerm2Region};
+use ratatui_testlib::{
+    graphics::{GraphicsCapture, GraphicsProtocol},
+    ITerm2Region, KittyRegion, ScreenState, SixelRegion,
+};
 
 fn main() {
     println!("=== Graphics Protocol Detection Example ===\n");
@@ -63,8 +65,15 @@ fn main() {
     for (i, region) in capture.regions().iter().enumerate() {
         let (row, col) = region.position;
         let (_, _, width, height) = region.bounds;
-        println!("   Graphic {}: {} at ({}, {}), size {}x{} cells",
-                 i + 1, region.protocol, row, col, width, height);
+        println!(
+            "   Graphic {}: {} at ({}, {}), size {}x{} cells",
+            i + 1,
+            region.protocol,
+            row,
+            col,
+            width,
+            height
+        );
     }
 
     // Filter by protocol
@@ -93,8 +102,10 @@ fn main() {
 
     // Define a preview area (row=0, col=0, width=40, height=20)
     let preview_area = (0, 0, 40, 20);
-    println!("   Preview area: row={}, col={}, width={}, height={}",
-             preview_area.0, preview_area.1, preview_area.2, preview_area.3);
+    println!(
+        "   Preview area: row={}, col={}, width={}, height={}",
+        preview_area.0, preview_area.1, preview_area.2, preview_area.3
+    );
 
     let in_area = capture.regions_in_area(preview_area);
     let outside_area = capture.regions_outside_area(preview_area);
@@ -141,11 +152,15 @@ fn main() {
     for region in capture.regions() {
         let test_area = (0, 0, 20, 20);
         if region.overlaps(test_area) {
-            println!("   {} at {:?} overlaps with area {:?}",
-                     region.protocol, region.position, test_area);
+            println!(
+                "   {} at {:?} overlaps with area {:?}",
+                region.protocol, region.position, test_area
+            );
         } else {
-            println!("   {} at {:?} does not overlap with area {:?}",
-                     region.protocol, region.position, test_area);
+            println!(
+                "   {} at {:?} does not overlap with area {:?}",
+                region.protocol, region.position, test_area
+            );
         }
     }
 

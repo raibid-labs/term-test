@@ -47,7 +47,10 @@ fn main() -> ratatui_testlib::Result<()> {
         TerminalProfile::WezTerm,
     ];
 
-    println!("{:<20} | {:>10} | {:>10} | {:>10} | {:>10}", "Terminal", "Sixel", "TrueColor", "Mouse", "Unicode");
+    println!(
+        "{:<20} | {:>10} | {:>10} | {:>10} | {:>10}",
+        "Terminal", "Sixel", "TrueColor", "Mouse", "Unicode"
+    );
     println!("{:-<20}-+-{:-<10}-+-{:-<10}-+-{:-<10}-+-{:-<10}", "", "", "", "", "");
 
     for profile in profiles {
@@ -73,7 +76,9 @@ fn main() -> ratatui_testlib::Result<()> {
         let caps = harness.terminal_capabilities();
         println!(
             "TERM={:<20} -> {} ({:?})",
-            term, harness.terminal_profile().display_name(), caps.color_depth
+            term,
+            harness.terminal_profile().display_name(),
+            caps.color_depth
         );
     }
 
@@ -217,11 +222,7 @@ fn main() -> ratatui_testlib::Result<()> {
     println!("\nProfiles:");
     for profile in all_profiles {
         let caps = profile.capabilities();
-        println!(
-            "  - {:<20} (TERM={})",
-            profile.display_name(),
-            caps.term_name
-        );
+        println!("  - {:<20} (TERM={})", profile.display_name(), caps.term_name);
     }
 
     println!("\n\nDemo complete!");

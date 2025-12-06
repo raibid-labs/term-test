@@ -1277,7 +1277,7 @@ impl ScreenState {
     /// # Example
     ///
     /// ```rust
-    /// use ratatui_testlib::{ScreenState, screen::SixelRegion};
+    /// use ratatui_testlib::{screen::SixelRegion, ScreenState};
     ///
     /// let mut screen = ScreenState::new(80, 24);
     ///

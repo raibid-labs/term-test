@@ -43,7 +43,9 @@
 //! harness.wait_for_daemon_output(|state| state.contains("Daemon ready"))?;
 //!
 //! // Set up client ECS state
-//! harness.world_mut().spawn(ConnectionState { connected: false });
+//! harness
+//!     .world_mut()
+//!     .spawn(ConnectionState { connected: false });
 //!
 //! // Run client update to connect to daemon
 //! harness.tick()?;
@@ -97,9 +99,10 @@ use crate::{
 /// ```rust,no_run
 /// # #[cfg(feature = "bevy")]
 /// # {
+/// use std::time::Duration;
+///
 /// use portable_pty::CommandBuilder;
 /// use ratatui_testlib::HybridBevyHarness;
-/// use std::time::Duration;
 ///
 /// # fn test() -> ratatui_testlib::Result<()> {
 /// let harness = HybridBevyHarness::builder()
@@ -236,7 +239,9 @@ impl HybridBevyHarnessBuilder {
 /// use ratatui_testlib::HybridBevyHarness;
 ///
 /// #[derive(Component)]
-/// struct ClientState { status: String }
+/// struct ClientState {
+///     status: String,
+/// }
 ///
 /// # fn test() -> ratatui_testlib::Result<()> {
 /// let mut harness = HybridBevyHarness::builder()
@@ -248,9 +253,9 @@ impl HybridBevyHarnessBuilder {
 /// harness.wait_for_daemon_output(|s| s.contains("Ready"))?;
 ///
 /// // Set up client
-/// harness.world_mut().spawn(ClientState {
-///     status: "connecting".to_string()
-/// });
+/// harness
+///     .world_mut()
+///     .spawn(ClientState { status: "connecting".to_string() });
 ///
 /// // Run client logic
 /// harness.tick()?;
@@ -357,8 +362,7 @@ impl HybridBevyHarness {
     /// use ratatui_testlib::HybridBevyHarness;
     ///
     /// # fn test() -> ratatui_testlib::Result<()> {
-    /// let mut harness = HybridBevyHarness::new()?
-    ///     .with_shared_state("/tmp/hybrid_state.mmap")?;
+    /// let mut harness = HybridBevyHarness::new()?.with_shared_state("/tmp/hybrid_state.mmap")?;
     ///
     /// // Access shared state in tests
     /// harness.tick()?;
@@ -387,8 +391,10 @@ impl HybridBevyHarness {
     /// ```rust,no_run
     /// # #[cfg(all(feature = "bevy", feature = "shared-state"))]
     /// # {
-    /// use ratatui_testlib::HybridBevyHarness;
-    /// use ratatui_testlib::shared_state::{MemoryMappedState, SharedStateAccess};
+    /// use ratatui_testlib::{
+    ///     shared_state::{MemoryMappedState, SharedStateAccess},
+    ///     HybridBevyHarness,
+    /// };
     /// use serde::{Deserialize, Serialize};
     ///
     /// #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -397,8 +403,7 @@ impl HybridBevyHarness {
     /// }
     ///
     /// # fn test() -> ratatui_testlib::Result<()> {
-    /// let harness = HybridBevyHarness::new()?
-    ///     .with_shared_state("/tmp/client.mmap")?;
+    /// let harness = HybridBevyHarness::new()?.with_shared_state("/tmp/client.mmap")?;
     ///
     /// if let Some(path) = harness.shared_state_path() {
     ///     let state = MemoryMappedState::<ClientState>::open(path)?;
@@ -642,13 +647,15 @@ impl HybridBevyHarness {
             return Err(TermTestError::ProcessAlreadyRunning);
         }
 
-        let harness = self.pty_harness.as_mut().ok_or_else(|| {
-            TermTestError::SpawnFailed("No PTY command configured".to_string())
-        })?;
+        let harness = self
+            .pty_harness
+            .as_mut()
+            .ok_or_else(|| TermTestError::SpawnFailed("No PTY command configured".to_string()))?;
 
-        let cmd = self.pty_command.clone().ok_or_else(|| {
-            TermTestError::SpawnFailed("No PTY command configured".to_string())
-        })?;
+        let cmd = self
+            .pty_command
+            .clone()
+            .ok_or_else(|| TermTestError::SpawnFailed("No PTY command configured".to_string()))?;
 
         harness.spawn(cmd)?;
         self.daemon_spawned = true;
@@ -981,9 +988,7 @@ mod tests {
     #[test]
     fn test_query_filtered() {
         let mut harness = HybridBevyHarness::new().unwrap();
-        harness
-            .world_mut()
-            .spawn((TestComponent(10), TestMarker));
+        harness.world_mut().spawn((TestComponent(10), TestMarker));
         harness.world_mut().spawn(TestComponent(20));
 
         let marked = harness.query_filtered::<TestComponent, TestMarker>();
@@ -1081,10 +1086,7 @@ mod tests {
         let mut harness = HybridBevyHarness::new().unwrap();
         let result = harness.send_to_daemon("test");
         assert!(result.is_err());
-        assert!(matches!(
-            result.unwrap_err(),
-            TermTestError::NoProcessRunning
-        ));
+        assert!(matches!(result.unwrap_err(), TermTestError::NoProcessRunning));
     }
 
     #[test]
@@ -1110,10 +1112,7 @@ mod tests {
         let mut harness = HybridBevyHarness::new().unwrap();
         let result = harness.wait_for_daemon_output(|_| true);
         assert!(result.is_err());
-        assert!(matches!(
-            result.unwrap_err(),
-            TermTestError::NoProcessRunning
-        ));
+        assert!(matches!(result.unwrap_err(), TermTestError::NoProcessRunning));
     }
 
     #[test]
@@ -1121,10 +1120,7 @@ mod tests {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
 
-        let harness = HybridBevyHarness::builder()
-            .with_app(app)
-            .build()
-            .unwrap();
+        let harness = HybridBevyHarness::builder().with_app(app).build().unwrap();
 
         assert!(harness.world().entities().len() >= 0);
     }
@@ -1237,9 +1233,9 @@ mod tests {
         let mut harness = HybridBevyHarness::new().unwrap();
 
         // Set up client state
-        harness.world_mut().spawn(ClientState {
-            status: "initializing".to_string(),
-        });
+        harness
+            .world_mut()
+            .spawn(ClientState { status: "initializing".to_string() });
 
         // Verify client state
         let states = harness.query::<ClientState>();

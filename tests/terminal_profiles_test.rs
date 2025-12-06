@@ -369,28 +369,17 @@ fn test_vscode_terminal_profile() {
 #[test]
 fn test_profile_from_name_variants() {
     // Test various name formats
-    assert_eq!(
-        TerminalProfile::from_name("tmux-256color"),
-        Some(TerminalProfile::Tmux)
-    );
-    assert_eq!(
-        TerminalProfile::from_name("xterm-kitty"),
-        Some(TerminalProfile::Kitty)
-    );
-    assert_eq!(
-        TerminalProfile::from_name("konsole-256color"),
-        Some(TerminalProfile::Konsole)
-    );
-    assert_eq!(
-        TerminalProfile::from_name("max"),
-        Some(TerminalProfile::Maximum)
-    );
+    assert_eq!(TerminalProfile::from_name("tmux-256color"), Some(TerminalProfile::Tmux));
+    assert_eq!(TerminalProfile::from_name("xterm-kitty"), Some(TerminalProfile::Kitty));
+    assert_eq!(TerminalProfile::from_name("konsole-256color"), Some(TerminalProfile::Konsole));
+    assert_eq!(TerminalProfile::from_name("max"), Some(TerminalProfile::Maximum));
 }
 
 #[test]
 fn test_capabilities_custom_fields() {
     let mut caps = TerminalProfile::WezTerm.capabilities();
-    caps.custom.insert("test_key".to_string(), "test_value".to_string());
+    caps.custom
+        .insert("test_key".to_string(), "test_value".to_string());
 
     assert_eq!(caps.custom.get("test_key").unwrap(), "test_value");
 }

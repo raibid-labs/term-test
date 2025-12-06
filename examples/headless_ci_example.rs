@@ -134,9 +134,13 @@ fn test_headless_ecs_queries() -> Result<()> {
         anchor_position: (0, 0),
     });
 
-    runner.world_mut().spawn(PromptMarker { line: 5, visible: true });
+    runner
+        .world_mut()
+        .spawn(PromptMarker { line: 5, visible: true });
 
-    runner.world_mut().spawn(PromptMarker { line: 15, visible: false });
+    runner
+        .world_mut()
+        .spawn(PromptMarker { line: 15, visible: false });
 
     // Run a few frames
     runner.tick_n(5)?;
@@ -175,13 +179,18 @@ fn test_nav_lifecycle() -> Result<()> {
     let mut runner = HeadlessBevyRunner::new()?;
 
     // Add nav systems
-    runner.app_mut().add_systems(Update, (update_nav_state, spawn_hint_entities).chain());
+    runner
+        .app_mut()
+        .add_systems(Update, (update_nav_state, spawn_hint_entities).chain());
 
     // Start in Normal mode
-    let entity = runner.world_mut().spawn(NavState {
-        mode: NavMode::Normal,
-        anchor_position: (5, 5),
-    }).id();
+    let entity = runner
+        .world_mut()
+        .spawn(NavState {
+            mode: NavMode::Normal,
+            anchor_position: (5, 5),
+        })
+        .id();
 
     runner.tick()?;
 
@@ -191,7 +200,12 @@ fn test_nav_lifecycle() -> Result<()> {
     println!("  [PASS] Normal mode: {} hints", hints.len());
 
     // Transition to HintMode
-    runner.world_mut().entity_mut(entity).get_mut::<NavState>().unwrap().mode = NavMode::HintMode;
+    runner
+        .world_mut()
+        .entity_mut(entity)
+        .get_mut::<NavState>()
+        .unwrap()
+        .mode = NavMode::HintMode;
     runner.tick()?;
 
     // Should have spawned hint entities
@@ -235,7 +249,11 @@ fn test_graphics_detection() -> Result<()> {
 
     let sixels = capture.by_protocol(GraphicsProtocol::Sixel);
     assert_eq!(sixels.len(), 1, "Should have 1 Sixel");
-    println!("  [PASS] GraphicsCapture: {} total, {} Sixel", capture.regions().len(), sixels.len());
+    println!(
+        "  [PASS] GraphicsCapture: {} total, {} Sixel",
+        capture.regions().len(),
+        sixels.len()
+    );
 
     // Simulate Kitty graphics
     screen.feed(b"\x1b_Gf=32,s=100,v=50,a=T;AAAA\x1b\\");
@@ -278,7 +296,9 @@ fn test_hybrid_harness_ecs() -> Result<()> {
         .build()?;
 
     // Add resources and systems
-    harness.app_mut().insert_resource(TerminalMetrics::default());
+    harness
+        .app_mut()
+        .insert_resource(TerminalMetrics::default());
     harness.app_mut().add_systems(Update, update_metrics);
 
     // Spawn test entities
@@ -342,7 +362,10 @@ fn test_performance_budgets() -> Result<()> {
 
     // Profile single frame
     let profile = runner.profile_update_cycle()?;
-    println!("  Single frame: {:.3}ms ({:.0} FPS equivalent)", profile.duration_ms, profile.fps_equivalent);
+    println!(
+        "  Single frame: {:.3}ms ({:.0} FPS equivalent)",
+        profile.duration_ms, profile.fps_equivalent
+    );
 
     println!("  [PASS] Performance benchmarking works in headless mode");
 

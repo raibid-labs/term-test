@@ -27,7 +27,7 @@ fn main() -> Result<()> {
     println!("1. Simulating Left Click at (10, 5)...");
     harness.mouse_click(10, 5, MouseButton::Left)?;
     harness.send_text("\n")?;
-    
+
     // Wait for echo. Note: cat -v outputs ^[ for ESC
     // Left Click Press: ^[[<0;11;6M
     // Left Click Release: ^[[<0;11;6m
@@ -47,7 +47,7 @@ fn main() -> Result<()> {
     println!("   ✓ Received scroll up sequence echo");
 
     println!("\n=== Mouse Demo Complete ===");
-    
+
     // Print the final screen state to show the echoed sequences
     println!("\nFinal Screen State (Cat Output):");
     println!("--------------------------------");

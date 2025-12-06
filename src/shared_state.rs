@@ -29,6 +29,7 @@
 //! # #[cfg(feature = "shared-state")]
 //! # {
 //! use std::time::Duration;
+//!
 //! use ratatui_testlib::shared_state::{MemoryMappedState, SharedStateAccess};
 //! use serde::{Deserialize, Serialize};
 //!
@@ -48,10 +49,7 @@
 //! println!("Score: {}", snapshot.score);
 //!
 //! // Wait for a condition with timeout
-//! state.wait_for(
-//!     |s| s.score >= 100,
-//!     Duration::from_secs(5)
-//! )?;
+//! state.wait_for(|s| s.score >= 100, Duration::from_secs(5))?;
 //! # Ok(())
 //! # }
 //! # }
@@ -65,8 +63,7 @@
 //! use ratatui_testlib::BevyTuiTestHarness;
 //!
 //! # fn test() -> ratatui_testlib::Result<()> {
-//! let mut harness = BevyTuiTestHarness::new()?
-//!     .with_shared_state("/tmp/tui_state.mmap")?;
+//! let mut harness = BevyTuiTestHarness::new()?.with_shared_state("/tmp/tui_state.mmap")?;
 //!
 //! // Run some updates
 //! harness.update_n(10)?;
@@ -108,14 +105,15 @@
 //! # }
 //! ```
 
-#[cfg(feature = "shared-state")]
-use memmap2::Mmap;
 use std::{
     fs::File,
     marker::PhantomData,
     path::Path,
     time::{Duration, Instant},
 };
+
+#[cfg(feature = "shared-state")]
+use memmap2::Mmap;
 use thiserror::Error;
 
 /// Errors that can occur during shared state operations.
@@ -189,6 +187,7 @@ pub type SharedStateResult<T> = std::result::Result<T, SharedStateError>;
 /// # #[cfg(feature = "shared-state")]
 /// # {
 /// use std::time::Duration;
+///
 /// use ratatui_testlib::shared_state::{MemoryMappedState, SharedStateAccess};
 /// use serde::{Deserialize, Serialize};
 ///
@@ -240,7 +239,9 @@ pub trait SharedStateAccess {
     /// use serde::{Deserialize, Serialize};
     ///
     /// #[derive(Debug, Clone, Serialize, Deserialize)]
-    /// struct State { value: i32 }
+    /// struct State {
+    ///     value: i32,
+    /// }
     ///
     /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let state = MemoryMappedState::<State>::open("/tmp/state.mmap")?;
@@ -273,7 +274,9 @@ pub trait SharedStateAccess {
     /// use serde::{Deserialize, Serialize};
     ///
     /// #[derive(Debug, Clone, Serialize, Deserialize)]
-    /// struct State { value: i32 }
+    /// struct State {
+    ///     value: i32,
+    /// }
     ///
     /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let state = MemoryMappedState::<State>::open("/tmp/state.mmap")?;
@@ -308,20 +311,20 @@ pub trait SharedStateAccess {
     /// # #[cfg(feature = "shared-state")]
     /// # {
     /// use std::time::Duration;
+    ///
     /// use ratatui_testlib::shared_state::{MemoryMappedState, SharedStateAccess};
     /// use serde::{Deserialize, Serialize};
     ///
     /// #[derive(Debug, Clone, Serialize, Deserialize)]
-    /// struct State { ready: bool }
+    /// struct State {
+    ///     ready: bool,
+    /// }
     ///
     /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let state = MemoryMappedState::<State>::open("/tmp/state.mmap")?;
     ///
     /// // Wait up to 5 seconds for ready flag
-    /// state.wait_for(
-    ///     |s| s.ready,
-    ///     Duration::from_secs(5)
-    /// )?;
+    /// state.wait_for(|s| s.ready, Duration::from_secs(5))?;
     /// # Ok(())
     /// # }
     /// # }
@@ -355,6 +358,7 @@ pub trait SharedStateAccess {
 /// # #[cfg(feature = "shared-state")]
 /// # {
 /// use std::time::Duration;
+///
 /// use ratatui_testlib::shared_state::{MemoryMappedState, SharedStateAccess};
 /// use serde::{Deserialize, Serialize};
 ///
@@ -373,10 +377,7 @@ pub trait SharedStateAccess {
 /// assert!(player.health > 0, "Player should be alive");
 ///
 /// // Wait for player to reach destination
-/// state.wait_for(
-///     |s| s.position.0 > 100.0 && s.position.1 > 100.0,
-///     Duration::from_secs(10)
-/// )?;
+/// state.wait_for(|s| s.position.0 > 100.0 && s.position.1 > 100.0, Duration::from_secs(10))?;
 /// # Ok(())
 /// # }
 /// # }
@@ -439,9 +440,8 @@ where
         // 2. We only perform read operations on the mapping
         // 3. The mapping is owned by this struct and lives as long as the file
         // 4. The memmap2 crate provides safe abstractions over mmap(2)
-        let mmap = unsafe {
-            Mmap::map(&file).map_err(|e| SharedStateError::MemoryMap(e.to_string()))?
-        };
+        let mmap =
+            unsafe { Mmap::map(&file).map_err(|e| SharedStateError::MemoryMap(e.to_string()))? };
 
         let mut state = Self {
             file,
@@ -530,10 +530,7 @@ where
 /// ```rust
 /// use ratatui_testlib::shared_state::assert_grid_cell;
 ///
-/// let grid = vec![
-///     vec!['H', 'e', 'l', 'l', 'o'],
-///     vec!['W', 'o', 'r', 'l', 'd'],
-/// ];
+/// let grid = vec![vec!['H', 'e', 'l', 'l', 'o'], vec!['W', 'o', 'r', 'l', 'd']];
 ///
 /// // This succeeds
 /// assert_grid_cell(&grid, 0, 0, 'H').unwrap();
@@ -556,12 +553,7 @@ pub fn assert_grid_cell(
     })?;
 
     if actual != expected {
-        return Err(SharedStateError::GridAssertionFailed {
-            row,
-            col,
-            expected,
-            actual,
-        });
+        return Err(SharedStateError::GridAssertionFailed { row, col, expected, actual });
     }
 
     Ok(())
@@ -589,6 +581,7 @@ pub fn assert_grid_cell(
 ///
 /// ```rust
 /// use std::collections::HashMap;
+///
 /// use ratatui_testlib::shared_state::assert_metric;
 ///
 /// let mut metrics = HashMap::new();
@@ -652,10 +645,7 @@ pub fn assert_metric(
 /// ```rust
 /// use ratatui_testlib::shared_state::snapshot_grid;
 ///
-/// let grid = vec![
-///     vec!['H', 'e', 'l', 'l', 'o'],
-///     vec!['W', 'o', 'r', 'l', 'd'],
-/// ];
+/// let grid = vec![vec!['H', 'e', 'l', 'l', 'o'], vec!['W', 'o', 'r', 'l', 'd']];
 ///
 /// let snapshot = snapshot_grid(&grid);
 /// assert_eq!(snapshot, "Hello\nWorld");
@@ -687,13 +677,7 @@ mod tests {
         let result = assert_grid_cell(&grid, 0, 0, 'X');
         assert!(result.is_err());
 
-        if let Err(SharedStateError::GridAssertionFailed {
-            row,
-            col,
-            expected,
-            actual,
-        }) = result
-        {
+        if let Err(SharedStateError::GridAssertionFailed { row, col, expected, actual }) = result {
             assert_eq!(row, 0);
             assert_eq!(col, 0);
             assert_eq!(expected, 'X');
@@ -754,12 +738,7 @@ mod tests {
         let result = assert_metric(&metrics, "value", 50.0);
         assert!(result.is_err());
 
-        if let Err(SharedStateError::MetricAssertionFailed {
-            name,
-            expected,
-            actual,
-        }) = result
-        {
+        if let Err(SharedStateError::MetricAssertionFailed { name, expected, actual }) = result {
             assert_eq!(name, "value");
             assert_eq!(expected, 50.0);
             assert_eq!(actual, Some(100.0));

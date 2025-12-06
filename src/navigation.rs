@@ -11,7 +11,7 @@
 //! # Example: Testing Hint Mode
 //!
 //! ```rust,no_run
-//! use ratatui_testlib::{TuiTestHarness, navigation::NavigationTestExt};
+//! use ratatui_testlib::{navigation::NavigationTestExt, TuiTestHarness};
 //!
 //! # fn test() -> ratatui_testlib::Result<()> {
 //! let mut harness = TuiTestHarness::new(80, 24)?;
@@ -32,7 +32,7 @@
 //! # Example: Testing Focus Navigation
 //!
 //! ```rust,no_run
-//! use ratatui_testlib::{TuiTestHarness, navigation::NavigationTestExt};
+//! use ratatui_testlib::{navigation::NavigationTestExt, TuiTestHarness};
 //!
 //! # fn test() -> ratatui_testlib::Result<()> {
 //! let mut harness = TuiTestHarness::new(80, 24)?;
@@ -130,7 +130,7 @@ pub enum HintElementType {
 /// # Example
 ///
 /// ```rust
-/// use ratatui_testlib::navigation::{HintLabel, HintElementType};
+/// use ratatui_testlib::navigation::{HintElementType, HintLabel};
 ///
 /// let hint = HintLabel {
 ///     label: "a".to_string(),
@@ -162,7 +162,7 @@ pub struct HintLabel {
 /// # Example
 ///
 /// ```rust
-/// use ratatui_testlib::{Rect, navigation::FocusInfo};
+/// use ratatui_testlib::{navigation::FocusInfo, Rect};
 ///
 /// let focus = FocusInfo {
 ///     bounds: Rect::new(10, 5, 20, 3),
@@ -257,7 +257,7 @@ pub trait NavigationTestExt {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use ratatui_testlib::{TuiTestHarness, navigation::NavigationTestExt};
+    /// use ratatui_testlib::{navigation::NavigationTestExt, TuiTestHarness};
     ///
     /// # fn test() -> ratatui_testlib::Result<()> {
     /// let mut harness = TuiTestHarness::new(80, 24)?;
@@ -288,7 +288,10 @@ pub trait NavigationTestExt {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use ratatui_testlib::{TuiTestHarness, navigation::{NavigationTestExt, NavMode}};
+    /// use ratatui_testlib::{
+    ///     navigation::{NavMode, NavigationTestExt},
+    ///     TuiTestHarness,
+    /// };
     ///
     /// # fn test() -> ratatui_testlib::Result<()> {
     /// let mut harness = TuiTestHarness::new(80, 24)?;
@@ -321,7 +324,7 @@ pub trait NavigationTestExt {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use ratatui_testlib::{TuiTestHarness, navigation::NavigationTestExt};
+    /// use ratatui_testlib::{navigation::NavigationTestExt, TuiTestHarness};
     ///
     /// # fn test() -> ratatui_testlib::Result<()> {
     /// let mut harness = TuiTestHarness::new(80, 24)?;
@@ -364,7 +367,7 @@ pub trait NavigationTestExt {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use ratatui_testlib::{TuiTestHarness, navigation::NavigationTestExt};
+    /// use ratatui_testlib::{navigation::NavigationTestExt, TuiTestHarness};
     ///
     /// # fn test() -> ratatui_testlib::Result<()> {
     /// let mut harness = TuiTestHarness::new(80, 24)?;
@@ -414,7 +417,7 @@ pub trait NavigationTestExt {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use ratatui_testlib::{TuiTestHarness, navigation::NavigationTestExt};
+    /// use ratatui_testlib::{navigation::NavigationTestExt, TuiTestHarness};
     ///
     /// # fn test() -> ratatui_testlib::Result<()> {
     /// let mut harness = TuiTestHarness::new(80, 24)?;
@@ -550,9 +553,7 @@ impl NavigationTestExt for TuiTestHarness {
 
             let elapsed = start.elapsed();
             if elapsed >= timeout {
-                return Err(TermTestError::Timeout {
-                    timeout_ms: timeout.as_millis() as u64,
-                });
+                return Err(TermTestError::Timeout { timeout_ms: timeout.as_millis() as u64 });
             }
 
             std::thread::sleep(Duration::from_millis(50));
@@ -582,7 +583,10 @@ impl NavigationTestExt for TuiTestHarness {
                     } else if line.contains('@') {
                         HintElementType::Email
                     } else if line.len() >= 7
-                        && line[matched.end()..].chars().take(7).all(|c| c.is_ascii_hexdigit())
+                        && line[matched.end()..]
+                            .chars()
+                            .take(7)
+                            .all(|c| c.is_ascii_hexdigit())
                     {
                         HintElementType::GitHash
                     } else {

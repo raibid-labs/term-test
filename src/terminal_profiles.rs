@@ -16,12 +16,11 @@
 //! # Example
 //!
 //! ```rust
-//! use ratatui_testlib::{TuiTestHarness, TerminalProfile, Feature};
+//! use ratatui_testlib::{Feature, TerminalProfile, TuiTestHarness};
 //!
 //! # fn test() -> ratatui_testlib::Result<()> {
 //! // Create a harness configured for xterm
-//! let mut harness = TuiTestHarness::new(80, 24)?
-//!     .with_terminal_profile(TerminalProfile::Xterm256);
+//! let mut harness = TuiTestHarness::new(80, 24)?.with_terminal_profile(TerminalProfile::Xterm256);
 //!
 //! // Check if current profile supports Sixel
 //! if harness.supports_feature(Feature::Sixel) {
@@ -118,7 +117,7 @@ pub enum MouseProtocol {
 /// # Example
 ///
 /// ```rust
-/// use ratatui_testlib::{TerminalCapabilities, ColorDepth, MouseProtocol};
+/// use ratatui_testlib::{ColorDepth, MouseProtocol, TerminalCapabilities};
 ///
 /// let caps = TerminalCapabilities {
 ///     color_depth: ColorDepth::TrueColor,
@@ -192,7 +191,7 @@ impl TerminalCapabilities {
     /// # Example
     ///
     /// ```rust
-    /// use ratatui_testlib::{TerminalCapabilities, Feature};
+    /// use ratatui_testlib::{Feature, TerminalCapabilities};
     ///
     /// let caps = TerminalCapabilities::default();
     /// assert!(caps.supports(Feature::AlternateScreen));
@@ -265,16 +264,14 @@ impl TerminalCapabilities {
 /// # Example
 ///
 /// ```rust
-/// use ratatui_testlib::{TuiTestHarness, TerminalProfile};
+/// use ratatui_testlib::{TerminalProfile, TuiTestHarness};
 ///
 /// # fn test() -> ratatui_testlib::Result<()> {
 /// // Test with basic VT100 compatibility
-/// let harness = TuiTestHarness::new(80, 24)?
-///     .with_terminal_profile(TerminalProfile::VT100);
+/// let harness = TuiTestHarness::new(80, 24)?.with_terminal_profile(TerminalProfile::VT100);
 ///
 /// // Test with modern terminal features
-/// let harness = TuiTestHarness::new(80, 24)?
-///     .with_terminal_profile(TerminalProfile::WezTerm);
+/// let harness = TuiTestHarness::new(80, 24)?.with_terminal_profile(TerminalProfile::WezTerm);
 /// # Ok(())
 /// # }
 /// ```
@@ -318,7 +315,7 @@ impl TerminalProfile {
     /// # Example
     ///
     /// ```rust
-    /// use ratatui_testlib::{TerminalProfile, Feature};
+    /// use ratatui_testlib::{Feature, TerminalProfile};
     ///
     /// let caps = TerminalProfile::WezTerm.capabilities();
     /// assert!(caps.supports(Feature::Sixel));
@@ -578,7 +575,7 @@ impl TerminalProfile {
     /// # Example
     ///
     /// ```rust
-    /// use ratatui_testlib::{TerminalProfile, Feature};
+    /// use ratatui_testlib::{Feature, TerminalProfile};
     ///
     /// assert!(TerminalProfile::WezTerm.supports(Feature::Sixel));
     /// assert!(!TerminalProfile::Alacritty.supports(Feature::Sixel));
@@ -638,14 +635,8 @@ impl TerminalProfile {
     /// ```rust
     /// use ratatui_testlib::TerminalProfile;
     ///
-    /// assert_eq!(
-    ///     TerminalProfile::from_name("wezterm"),
-    ///     Some(TerminalProfile::WezTerm)
-    /// );
-    /// assert_eq!(
-    ///     TerminalProfile::from_name("xterm-256color"),
-    ///     Some(TerminalProfile::Xterm256)
-    /// );
+    /// assert_eq!(TerminalProfile::from_name("wezterm"), Some(TerminalProfile::WezTerm));
+    /// assert_eq!(TerminalProfile::from_name("xterm-256color"), Some(TerminalProfile::Xterm256));
     /// ```
     pub fn from_name(name: &str) -> Option<Self> {
         let name_lower = name.to_lowercase();
@@ -743,18 +734,9 @@ mod tests {
 
     #[test]
     fn test_profile_from_name() {
-        assert_eq!(
-            TerminalProfile::from_name("wezterm"),
-            Some(TerminalProfile::WezTerm)
-        );
-        assert_eq!(
-            TerminalProfile::from_name("WEZTERM"),
-            Some(TerminalProfile::WezTerm)
-        );
-        assert_eq!(
-            TerminalProfile::from_name("xterm-256color"),
-            Some(TerminalProfile::Xterm256)
-        );
+        assert_eq!(TerminalProfile::from_name("wezterm"), Some(TerminalProfile::WezTerm));
+        assert_eq!(TerminalProfile::from_name("WEZTERM"), Some(TerminalProfile::WezTerm));
+        assert_eq!(TerminalProfile::from_name("xterm-256color"), Some(TerminalProfile::Xterm256));
         assert_eq!(TerminalProfile::from_name("unknown"), None);
     }
 

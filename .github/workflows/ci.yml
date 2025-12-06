@@ -183,6 +183,17 @@ jobs:
           path: coverage/
           retention-days: 30
 
+  # Documentation check - validates docs structure and links
+  docs-check:
+    name: Documentation Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run documentation validation
+        run: ./scripts/check-docs.sh
+
   # Security audit - checks for known vulnerabilities
   security-audit:
     name: Security Audit
@@ -370,7 +381,7 @@ jobs:
   ci-success:
     name: CI Success
     runs-on: ubuntu-latest
-    needs: [check, test, feature-tests, coverage, security-audit, examples, headless, headless-bevy-runner, msrv]
+    needs: [check, test, feature-tests, coverage, docs-check, security-audit, examples, headless, headless-bevy-runner, msrv]
     if: always()
     steps:
       - name: Check all jobs
@@ -379,6 +390,7 @@ jobs:
              [ "${{ needs.test.result }}" != "success" ] || \
              [ "${{ needs.feature-tests.result }}" != "success" ] || \
              [ "${{ needs.coverage.result }}" != "success" ] || \
+             [ "${{ needs.docs-check.result }}" != "success" ] || \
              [ "${{ needs.security-audit.result }}" != "success" ] || \
              [ "${{ needs.examples.result }}" != "success" ] || \
              [ "${{ needs.headless.result }}" != "success" ] || \

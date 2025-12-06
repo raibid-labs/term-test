@@ -50,7 +50,10 @@ use portable_pty::{CommandBuilder, ExitStatus};
 
 use crate::{
     error::{Result, TermTestError},
-    events::{encode_key_event, encode_mouse_event, KeyCode, KeyEvent, Modifiers, MouseEvent, MouseButton, ScrollDirection},
+    events::{
+        encode_key_event, encode_mouse_event, KeyCode, KeyEvent, Modifiers, MouseButton,
+        MouseEvent, ScrollDirection,
+    },
     pty::TestTerminal,
     screen::ScreenState,
     terminal_profiles::{Feature, TerminalCapabilities, TerminalProfile},
@@ -113,10 +116,7 @@ impl MemoryResults {
     /// * `current_bytes` - Current memory usage estimate
     /// * `peak_bytes` - Peak memory usage estimate
     pub fn new(current_bytes: usize, peak_bytes: usize) -> Self {
-        Self {
-            current_bytes,
-            peak_bytes,
-        }
+        Self { current_bytes, peak_bytes }
     }
 
     /// Returns a formatted summary string.
@@ -336,16 +336,14 @@ impl TuiTestHarness {
     /// # Example
     ///
     /// ```rust
-    /// use ratatui_testlib::{TuiTestHarness, TerminalProfile};
+    /// use ratatui_testlib::{TerminalProfile, TuiTestHarness};
     ///
     /// # fn test() -> ratatui_testlib::Result<()> {
     /// // Test with WezTerm profile (supports Sixel)
-    /// let harness = TuiTestHarness::new(80, 24)?
-    ///     .with_terminal_profile(TerminalProfile::WezTerm);
+    /// let harness = TuiTestHarness::new(80, 24)?.with_terminal_profile(TerminalProfile::WezTerm);
     ///
     /// // Test with VT100 profile (minimal features)
-    /// let harness = TuiTestHarness::new(80, 24)?
-    ///     .with_terminal_profile(TerminalProfile::VT100);
+    /// let harness = TuiTestHarness::new(80, 24)?.with_terminal_profile(TerminalProfile::VT100);
     /// # Ok(())
     /// # }
     /// ```
@@ -374,12 +372,10 @@ impl TuiTestHarness {
     ///
     /// # fn test() -> ratatui_testlib::Result<()> {
     /// // Simulate WezTerm using TERM value
-    /// let harness = TuiTestHarness::new(80, 24)?
-    ///     .simulate_terminfo("wezterm");
+    /// let harness = TuiTestHarness::new(80, 24)?.simulate_terminfo("wezterm");
     ///
     /// // Simulate xterm-256color
-    /// let harness = TuiTestHarness::new(80, 24)?
-    ///     .simulate_terminfo("xterm-256color");
+    /// let harness = TuiTestHarness::new(80, 24)?.simulate_terminfo("xterm-256color");
     /// # Ok(())
     /// # }
     /// ```
@@ -402,11 +398,10 @@ impl TuiTestHarness {
     /// # Example
     ///
     /// ```rust
-    /// use ratatui_testlib::{TuiTestHarness, TerminalProfile, Feature};
+    /// use ratatui_testlib::{Feature, TerminalProfile, TuiTestHarness};
     ///
     /// # fn test() -> ratatui_testlib::Result<()> {
-    /// let harness = TuiTestHarness::new(80, 24)?
-    ///     .with_terminal_profile(TerminalProfile::WezTerm);
+    /// let harness = TuiTestHarness::new(80, 24)?.with_terminal_profile(TerminalProfile::WezTerm);
     ///
     /// if harness.supports_feature(Feature::Sixel) {
     ///     // Run Sixel-specific tests
@@ -432,11 +427,10 @@ impl TuiTestHarness {
     /// # Example
     ///
     /// ```rust
-    /// use ratatui_testlib::{TuiTestHarness, TerminalProfile};
+    /// use ratatui_testlib::{TerminalProfile, TuiTestHarness};
     ///
     /// # fn test() -> ratatui_testlib::Result<()> {
-    /// let harness = TuiTestHarness::new(80, 24)?
-    ///     .with_terminal_profile(TerminalProfile::WezTerm);
+    /// let harness = TuiTestHarness::new(80, 24)?.with_terminal_profile(TerminalProfile::WezTerm);
     ///
     /// let caps = harness.terminal_capabilities();
     /// println!("Terminal: {}", caps.term_name);
@@ -455,11 +449,10 @@ impl TuiTestHarness {
     /// # Example
     ///
     /// ```rust
-    /// use ratatui_testlib::{TuiTestHarness, TerminalProfile};
+    /// use ratatui_testlib::{TerminalProfile, TuiTestHarness};
     ///
     /// # fn test() -> ratatui_testlib::Result<()> {
-    /// let harness = TuiTestHarness::new(80, 24)?
-    ///     .with_terminal_profile(TerminalProfile::WezTerm);
+    /// let harness = TuiTestHarness::new(80, 24)?.with_terminal_profile(TerminalProfile::WezTerm);
     ///
     /// assert_eq!(harness.terminal_profile(), TerminalProfile::WezTerm);
     /// # Ok(())
@@ -655,8 +648,9 @@ impl TuiTestHarness {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use ratatui_testlib::TuiTestHarness;
     /// use std::time::Duration;
+    ///
+    /// use ratatui_testlib::TuiTestHarness;
     ///
     /// # fn test() -> ratatui_testlib::Result<()> {
     /// let mut harness = TuiTestHarness::new(80, 24)?;
@@ -681,8 +675,9 @@ impl TuiTestHarness {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use ratatui_testlib::TuiTestHarness;
     /// use std::time::Duration;
+    ///
+    /// use ratatui_testlib::TuiTestHarness;
     ///
     /// # fn test() -> ratatui_testlib::Result<()> {
     /// let mut harness = TuiTestHarness::new(80, 24)?;
@@ -708,8 +703,9 @@ impl TuiTestHarness {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use ratatui_testlib::TuiTestHarness;
     /// use std::time::Duration;
+    ///
+    /// use ratatui_testlib::TuiTestHarness;
     ///
     /// # fn test() -> ratatui_testlib::Result<()> {
     /// let mut harness = TuiTestHarness::new(80, 24)?;
@@ -747,8 +743,9 @@ impl TuiTestHarness {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use ratatui_testlib::TuiTestHarness;
     /// use std::time::Duration;
+    ///
+    /// use ratatui_testlib::TuiTestHarness;
     ///
     /// # fn test() -> ratatui_testlib::Result<()> {
     /// let mut harness = TuiTestHarness::new(80, 24)?;
@@ -880,7 +877,7 @@ impl TuiTestHarness {
         button: MouseButton,
     ) -> Result<()> {
         self.send_mouse_event(MouseEvent::press(start_x, start_y, button))?;
-        
+
         // SGR encoding handles drag by sending press events with updated coordinates
         // We use a slightly modified button code for drag events in standard protocols,
         // but standard SGR press events at new coordinates are often interpreted as drags
@@ -893,11 +890,11 @@ impl TuiTestHarness {
         // However, strictly speaking, motion events might need the +32 flag.
         // encode_mouse_event handles this if we had a 'drag' variant in MouseEvent.
         // For now, we'll simulate it as a press at the new location.
-        
+
         // Note: Some terminals/frameworks expect intermediate points.
         // We jump directly to end for simplicity.
         self.send_mouse_event(MouseEvent::press(end_x, end_y, button))?;
-        
+
         self.send_mouse_event(MouseEvent::release(end_x, end_y, button))
     }
 
@@ -1587,7 +1584,9 @@ impl TuiTestHarness {
         if memory.current_bytes > limit_bytes {
             return Err(TermTestError::Parse(format!(
                 "Memory usage exceeds limit: {} bytes > {} bytes (limit)\n{}",
-                memory.current_bytes, limit_bytes, memory.summary()
+                memory.current_bytes,
+                limit_bytes,
+                memory.summary()
             )));
         }
 
@@ -2428,7 +2427,11 @@ impl TuiTestHarness {
         })?;
 
         for (i, event) in self.recorded_events.iter().enumerate() {
-            let comma = if i < self.recorded_events.len() - 1 { "," } else { "" };
+            let comma = if i < self.recorded_events.len() - 1 {
+                ","
+            } else {
+                ""
+            };
 
             // Format event as JSON
             let event_json = match &event.event {
@@ -2687,8 +2690,8 @@ impl TuiTestHarness {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use ratatui_testlib::TuiTestHarness;
     /// use portable_pty::CommandBuilder;
+    /// use ratatui_testlib::TuiTestHarness;
     ///
     /// # fn test() -> ratatui_testlib::Result<()> {
     /// TuiTestHarness::with_isolation(|harness| {
@@ -2726,8 +2729,8 @@ impl TuiTestHarness {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use ratatui_testlib::TuiTestHarness;
     /// use portable_pty::CommandBuilder;
+    /// use ratatui_testlib::TuiTestHarness;
     ///
     /// # fn test() -> ratatui_testlib::Result<()> {
     /// TuiTestHarness::with_isolation_sized(100, 30, |harness| {
@@ -2757,6 +2760,7 @@ impl TuiTestHarness {
     ///
     /// ```rust,no_run
     /// use std::time::Duration;
+    ///
     /// use ratatui_testlib::TuiTestHarness;
     ///
     /// # fn test() -> ratatui_testlib::Result<()> {
@@ -2782,8 +2786,9 @@ impl TuiTestHarness {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use ratatui_testlib::TuiTestHarness;
     /// use std::time::Duration;
+    ///
+    /// use ratatui_testlib::TuiTestHarness;
     ///
     /// # fn test() -> ratatui_testlib::Result<()> {
     /// let mut harness = TuiTestHarness::new(80, 24)?;
@@ -2817,8 +2822,9 @@ impl TuiTestHarness {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use ratatui_testlib::TuiTestHarness;
     /// use std::time::Duration;
+    ///
+    /// use ratatui_testlib::TuiTestHarness;
     ///
     /// # fn test() -> ratatui_testlib::Result<()> {
     /// let mut harness = TuiTestHarness::new(80, 24)?;
@@ -2941,7 +2947,8 @@ impl TimingHooks for TuiTestHarness {
         end_event: &str,
         budget: Duration,
     ) -> Result<()> {
-        self.timing_recorder.assert_latency_within(start_event, end_event, budget)
+        self.timing_recorder
+            .assert_latency_within(start_event, end_event, budget)
     }
 }
 

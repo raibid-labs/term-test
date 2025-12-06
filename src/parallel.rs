@@ -14,8 +14,9 @@
 //! # Example
 //!
 //! ```rust,no_run
-//! use ratatui_testlib::{TuiTestHarness, Result};
 //! use std::thread;
+//!
+//! use ratatui_testlib::{Result, TuiTestHarness};
 //!
 //! # fn test() -> Result<()> {
 //! // Create multiple harnesses that can run in parallel
@@ -194,9 +195,9 @@ impl PooledTerminal {
 /// # Example
 ///
 /// ```rust,no_run
-/// use ratatui_testlib::parallel::{TerminalPool, PoolConfig};
-/// use std::sync::Arc;
-/// use std::thread;
+/// use std::{sync::Arc, thread};
+///
+/// use ratatui_testlib::parallel::{PoolConfig, TerminalPool};
 ///
 /// # fn test() -> ratatui_testlib::Result<()> {
 /// let config = PoolConfig::default().with_max_terminals(8);
@@ -332,10 +333,7 @@ impl TerminalPool {
             pooled.release();
             Ok(())
         } else {
-            Err(TermTestError::Pty(format!(
-                "Terminal ID {:?} not found in pool",
-                terminal.id
-            )))
+            Err(TermTestError::Pty(format!("Terminal ID {:?} not found in pool", terminal.id)))
         }
     }
 
@@ -448,9 +446,9 @@ impl IsolatedTerminal {
 /// # Example
 ///
 /// ```rust
+/// use std::{sync::Arc, thread};
+///
 /// use ratatui_testlib::parallel::TestContext;
-/// use std::sync::Arc;
-/// use std::thread;
 ///
 /// let context = Arc::new(TestContext::new());
 ///
@@ -580,8 +578,9 @@ impl Clone for TestContext {
 /// # Example
 ///
 /// ```rust,no_run
-/// use ratatui_testlib::parallel::{TerminalPool, TerminalGuard};
 /// use std::sync::Arc;
+///
+/// use ratatui_testlib::parallel::{TerminalGuard, TerminalPool};
 ///
 /// # fn test() -> ratatui_testlib::Result<()> {
 /// let pool = Arc::new(TerminalPool::default_pool()?);
@@ -604,10 +603,7 @@ impl TerminalGuard {
     /// Acquires a terminal from the pool and wraps it in a guard.
     pub fn acquire(pool: Arc<TerminalPool>, width: u16, height: u16) -> Result<Self> {
         let terminal = pool.acquire(width, height)?;
-        Ok(Self {
-            terminal: Some(terminal),
-            pool,
-        })
+        Ok(Self { terminal: Some(terminal), pool })
     }
 
     /// Returns a reference to the isolated terminal.
@@ -638,8 +634,9 @@ impl Drop for TerminalGuard {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::thread;
+
+    use super::*;
 
     #[test]
     fn test_pool_config() {

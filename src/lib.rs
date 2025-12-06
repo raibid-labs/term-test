@@ -100,8 +100,10 @@
 //! ```rust,no_run
 //! # #[cfg(all(feature = "bevy", feature = "shared-state"))]
 //! # {
-//! use ratatui_testlib::BevyTuiTestHarness;
-//! use ratatui_testlib::shared_state::{MemoryMappedState, SharedStateAccess};
+//! use ratatui_testlib::{
+//!     shared_state::{MemoryMappedState, SharedStateAccess},
+//!     BevyTuiTestHarness,
+//! };
 //! use serde::{Deserialize, Serialize};
 //!
 //! #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -111,8 +113,7 @@
 //! }
 //!
 //! # fn test() -> ratatui_testlib::Result<()> {
-//! let harness = BevyTuiTestHarness::new()?
-//!     .with_shared_state("/tmp/app_state.mmap")?;
+//! let harness = BevyTuiTestHarness::new()?.with_shared_state("/tmp/app_state.mmap")?;
 //!
 //! // Access shared state for assertions
 //! if let Some(path) = harness.shared_state_path() {
@@ -209,11 +210,16 @@ pub mod shared_state;
 mod async_harness;
 
 // Public API exports
+#[cfg(feature = "async-tokio")]
+pub use async_harness::{AsyncTuiTestHarness, WaitResult};
 pub use error::{Result, TermTestError};
 pub use events::{KeyCode, KeyEvent, Modifiers, MouseButton, MouseEvent, ScrollDirection};
 pub use golden::{GoldenFile, GoldenMetadata};
 pub use harness::{Axis, MemoryResults, RecordedEvent, TuiTestHarness};
-pub use navigation::{FocusInfo, HintElementType, HintLabel, NavMode, NavigationTestExt, PromptMarker, PromptMarkerType};
+pub use navigation::{
+    FocusInfo, HintElementType, HintLabel, NavMode, NavigationTestExt, PromptMarker,
+    PromptMarkerType,
+};
 pub use parallel::{
     IsolatedTerminal, PoolConfig, PoolStats, TerminalGuard, TerminalId, TerminalPool, TestContext,
 };
@@ -222,9 +228,6 @@ pub use screen::{Cell, GridSnapshot, ITerm2Region, KittyRegion, Rect, ScreenStat
 pub use terminal_profiles::{
     ColorDepth, Feature, MouseProtocol, TerminalCapabilities, TerminalProfile,
 };
-
-#[cfg(feature = "async-tokio")]
-pub use async_harness::{AsyncTuiTestHarness, WaitResult};
 
 /// Re-export of [`ScreenState`] for clarity in stream-based parsing contexts.
 ///
@@ -245,10 +248,12 @@ pub type Parser = ScreenState;
 #[cfg(all(feature = "bevy", feature = "snapshot-insta"))]
 pub use bevy::ComponentSnapshot;
 #[cfg(feature = "bevy")]
-pub use bevy::{BevyTuiTestHarness, HeadlessBevyRunner, HybridBevyHarness, HybridBevyHarnessBuilder};
-// Re-export commonly used types for convenience
-pub use portable_pty::CommandBuilder;
+pub use bevy::{
+    BevyTuiTestHarness, HeadlessBevyRunner, HybridBevyHarness, HybridBevyHarnessBuilder,
+};
 #[cfg(feature = "sixel")]
 pub use graphics::{GraphicsCapture, GraphicsProtocol, GraphicsRegion};
+// Re-export commonly used types for convenience
+pub use portable_pty::CommandBuilder;
 #[cfg(feature = "sixel")]
 pub use sixel::{SixelCapture, SixelSequence};

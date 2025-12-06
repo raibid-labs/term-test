@@ -154,10 +154,17 @@ cargo test --features bevy,headless
 
 ## Documentation
 
-- **[RESEARCH.md](./docs/RESEARCH.md)** - Background research and technology choices.
-- **[ARCHITECTURE.md](./docs/ARCHITECTURE.md)** - Library architecture and design.
-- **[TESTING_APPROACHES.md](./docs/TESTING_APPROACHES.md)** - Guide to TUI testing methodologies.
-- **[ROADMAP.md](./docs/ROADMAP.md)** - Project status and future plans.
+### Core Documentation
+- **[ARCHITECTURE.md](./docs/ARCHITECTURE.md)** - Library architecture and design decisions
+- **[docs/STRUCTURE.md](./docs/STRUCTURE.md)** - Documentation organization and versioning policy
+- **[CHANGELOG.md](./CHANGELOG.md)** - Version history and release notes
+
+### Versioned Documentation
+- **[vNEXT](./docs/versions/vNEXT/)** - Unreleased features and planned enhancements
+
+### Additional Resources
+- **[CONTRIBUTING.md](./CONTRIBUTING.md)** - Guidelines for contributors
+- **[API Documentation](https://docs.rs/ratatui-testlib)** - Full API reference on docs.rs
 
 ## Installation
 

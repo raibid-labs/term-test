@@ -3,8 +3,9 @@
 //! These tests demonstrate how to measure and assert input-to-render latency
 //! in real TUI applications.
 
-use ratatui_testlib::{timing::TimingHooks, Result, TuiTestHarness};
 use std::time::Duration;
+
+use ratatui_testlib::{timing::TimingHooks, Result, TuiTestHarness};
 
 #[test]
 fn test_basic_input_latency_measurement() -> Result<()> {
@@ -226,14 +227,8 @@ fn test_timing_recorder_event_names() -> Result<()> {
 
     // Verify standard event names are present
     let event_names: Vec<&str> = timings.event_names().collect();
-    assert!(
-        event_names.contains(&"input_sent"),
-        "Should have 'input_sent' event"
-    );
-    assert!(
-        event_names.contains(&"render_complete"),
-        "Should have 'render_complete' event"
-    );
+    assert!(event_names.contains(&"input_sent"), "Should have 'input_sent' event");
+    assert!(event_names.contains(&"render_complete"), "Should have 'render_complete' event");
 
     Ok(())
 }

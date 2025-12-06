@@ -1,5 +1,6 @@
-use ratatui_testlib::{KeyCode, Result, TuiTestHarness};
 use std::time::{Duration, Instant};
+
+use ratatui_testlib::{KeyCode, Result, TuiTestHarness};
 
 #[test]
 fn test_event_delay_default() {

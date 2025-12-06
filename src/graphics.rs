@@ -33,7 +33,10 @@
 //! ```rust
 //! # #[cfg(feature = "sixel")]
 //! # {
-//! use ratatui_testlib::{graphics::{GraphicsProtocol, GraphicsCapture}, ScreenState, TuiTestHarness};
+//! use ratatui_testlib::{
+//!     graphics::{GraphicsCapture, GraphicsProtocol},
+//!     ScreenState, TuiTestHarness,
+//! };
 //!
 //! # fn test_graphics() -> ratatui_testlib::Result<()> {
 //! let mut harness = TuiTestHarness::new(80, 24)?;
@@ -154,8 +157,8 @@ impl GraphicsProtocol {
     /// ```
     pub fn escape_prefix(&self) -> &'static str {
         match self {
-            GraphicsProtocol::Sixel => "\x1bPq",      // DCS q
-            GraphicsProtocol::Kitty => "\x1b_G",      // APC G
+            GraphicsProtocol::Sixel => "\x1bPq",           // DCS q
+            GraphicsProtocol::Kitty => "\x1b_G",           // APC G
             GraphicsProtocol::ITerm2 => "\x1b]1337;File=", // OSC 1337;File=
         }
     }
@@ -236,12 +239,7 @@ impl GraphicsRegion {
         bounds: (u16, u16, u16, u16),
         raw_data: Vec<u8>,
     ) -> Self {
-        Self {
-            protocol,
-            position,
-            bounds,
-            raw_data,
-        }
+        Self { protocol, position, bounds, raw_data }
     }
 
     /// Checks if this graphic is completely within the specified area.
@@ -263,12 +261,7 @@ impl GraphicsRegion {
     /// ```rust
     /// use ratatui_testlib::graphics::{GraphicsProtocol, GraphicsRegion};
     ///
-    /// let region = GraphicsRegion::new(
-    ///     GraphicsProtocol::Sixel,
-    ///     (5, 5),
-    ///     (5, 5, 10, 10),
-    ///     vec![],
-    /// );
+    /// let region = GraphicsRegion::new(GraphicsProtocol::Sixel, (5, 5), (5, 5, 10, 10), vec![]);
     ///
     /// let area = (0, 0, 20, 20);
     /// assert!(region.is_within(area)); // Completely inside
@@ -305,12 +298,7 @@ impl GraphicsRegion {
     /// ```rust
     /// use ratatui_testlib::graphics::{GraphicsProtocol, GraphicsRegion};
     ///
-    /// let region = GraphicsRegion::new(
-    ///     GraphicsProtocol::ITerm2,
-    ///     (5, 5),
-    ///     (5, 5, 10, 10),
-    ///     vec![],
-    /// );
+    /// let region = GraphicsRegion::new(GraphicsProtocol::ITerm2, (5, 5), (5, 5, 10, 10), vec![]);
     ///
     /// assert!(region.overlaps((0, 0, 10, 10))); // Partial overlap
     /// assert!(region.overlaps((10, 10, 10, 10))); // Edge overlap
@@ -342,7 +330,10 @@ impl GraphicsRegion {
 /// ```rust
 /// # #[cfg(feature = "sixel")]
 /// # {
-/// use ratatui_testlib::{graphics::{GraphicsCapture, GraphicsProtocol}, ScreenState};
+/// use ratatui_testlib::{
+///     graphics::{GraphicsCapture, GraphicsProtocol},
+///     ScreenState,
+/// };
 ///
 /// # fn test() -> ratatui_testlib::Result<()> {
 /// let screen = ScreenState::new(80, 24);
@@ -381,9 +372,7 @@ impl GraphicsCapture {
     /// assert!(capture.is_empty());
     /// ```
     pub fn new() -> Self {
-        Self {
-            regions: Vec::new(),
-        }
+        Self { regions: Vec::new() }
     }
 
     /// Creates a graphics capture from a ScreenState.
@@ -427,12 +416,7 @@ impl GraphicsCapture {
             regions.push(GraphicsRegion::new(
                 GraphicsProtocol::Sixel,
                 (sixel_region.start_row, sixel_region.start_col),
-                (
-                    sixel_region.start_row,
-                    sixel_region.start_col,
-                    width_cells,
-                    height_cells,
-                ),
+                (sixel_region.start_row, sixel_region.start_col, width_cells, height_cells),
                 sixel_region.data.clone(),
             ));
         }
@@ -457,12 +441,7 @@ impl GraphicsCapture {
             regions.push(GraphicsRegion::new(
                 GraphicsProtocol::Kitty,
                 (kitty_region.start_row, kitty_region.start_col),
-                (
-                    kitty_region.start_row,
-                    kitty_region.start_col,
-                    width_cells,
-                    height_cells,
-                ),
+                (kitty_region.start_row, kitty_region.start_col, width_cells, height_cells),
                 kitty_region.data.clone(),
             ));
         }
@@ -476,12 +455,7 @@ impl GraphicsCapture {
             regions.push(GraphicsRegion::new(
                 GraphicsProtocol::ITerm2,
                 (iterm2_region.start_row, iterm2_region.start_col),
-                (
-                    iterm2_region.start_row,
-                    iterm2_region.start_col,
-                    width_cells,
-                    height_cells,
-                ),
+                (iterm2_region.start_row, iterm2_region.start_col, width_cells, height_cells),
                 iterm2_region.data.clone(),
             ));
         }
@@ -629,7 +603,10 @@ impl GraphicsCapture {
     /// assert_eq!(capture.count_by_protocol(GraphicsProtocol::Sixel), 0);
     /// ```
     pub fn count_by_protocol(&self, protocol: GraphicsProtocol) -> usize {
-        self.regions.iter().filter(|r| r.protocol == protocol).count()
+        self.regions
+            .iter()
+            .filter(|r| r.protocol == protocol)
+            .count()
     }
 
     /// Asserts that all graphics regions are within the specified area.
@@ -773,12 +750,7 @@ mod tests {
 
     #[test]
     fn test_region_within() {
-        let region = GraphicsRegion::new(
-            GraphicsProtocol::Sixel,
-            (5, 5),
-            (5, 5, 10, 10),
-            vec![],
-        );
+        let region = GraphicsRegion::new(GraphicsProtocol::Sixel, (5, 5), (5, 5, 10, 10), vec![]);
 
         assert!(region.is_within((0, 0, 20, 20)));
         assert!(!region.is_within((0, 0, 10, 10)));
@@ -787,12 +759,7 @@ mod tests {
 
     #[test]
     fn test_region_overlaps() {
-        let region = GraphicsRegion::new(
-            GraphicsProtocol::Kitty,
-            (5, 5),
-            (5, 5, 10, 10),
-            vec![],
-        );
+        let region = GraphicsRegion::new(GraphicsProtocol::Kitty, (5, 5), (5, 5, 10, 10), vec![]);
 
         assert!(region.overlaps((0, 0, 10, 10)));
         assert!(region.overlaps((10, 10, 10, 10)));

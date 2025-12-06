@@ -8,11 +8,12 @@
 //!
 //! Run with: cargo run --example timing_demo
 
+use std::time::Duration;
+
 use ratatui_testlib::{
     timing::{fps_to_frame_budget, LatencyProfile, TimingHooks, TimingRecorder},
     Result,
 };
-use std::time::Duration;
 
 fn main() -> Result<()> {
     println!("=== Timing Infrastructure Demo ===\n");
@@ -51,17 +52,11 @@ fn demo_timing_recorder() -> Result<()> {
 
     // Measure latencies
     if let Some(input_to_render) = recorder.measure_latency("input_received", "render_complete") {
-        println!(
-            "  Input → Render: {:.2}ms",
-            input_to_render.as_secs_f64() * 1000.0
-        );
+        println!("  Input → Render: {:.2}ms", input_to_render.as_secs_f64() * 1000.0);
     }
 
     if let Some(total_latency) = recorder.measure_latency("input_received", "frame_displayed") {
-        println!(
-            "  Total Latency: {:.2}ms",
-            total_latency.as_secs_f64() * 1000.0
-        );
+        println!("  Total Latency: {:.2}ms", total_latency.as_secs_f64() * 1000.0);
     }
 
     // Assert latency is within budget (16.67ms for 60 FPS)
@@ -95,17 +90,11 @@ fn demo_latency_profile() -> Result<()> {
 
     // Analyze latency stages
     if let Some(input_to_render) = profile.input_to_render() {
-        println!(
-            "  Input → Render: {:.2}ms",
-            input_to_render.as_secs_f64() * 1000.0
-        );
+        println!("  Input → Render: {:.2}ms", input_to_render.as_secs_f64() * 1000.0);
     }
 
     if let Some(render_duration) = profile.render_duration() {
-        println!(
-            "  Render Duration: {:.2}ms",
-            render_duration.as_secs_f64() * 1000.0
-        );
+        println!("  Render Duration: {:.2}ms", render_duration.as_secs_f64() * 1000.0);
     }
 
     if let Some(total) = profile.total_latency() {
