@@ -16,8 +16,9 @@
 //! # Example: Basic Timing
 //!
 //! ```rust
-//! use ratatui_testlib::timing::TimingRecorder;
 //! use std::time::Duration;
+//!
+//! use ratatui_testlib::timing::TimingRecorder;
 //!
 //! let mut recorder = TimingRecorder::new();
 //!
@@ -29,15 +30,18 @@
 //! recorder.record_event("render_end");
 //!
 //! // Measure latency
-//! let latency = recorder.measure_latency("input_sent", "render_end").unwrap();
+//! let latency = recorder
+//!     .measure_latency("input_sent", "render_end")
+//!     .unwrap();
 //! assert!(latency < Duration::from_millis(20));
 //! ```
 //!
 //! # Example: Input→Render Latency Profiling
 //!
 //! ```rust
-//! use ratatui_testlib::timing::LatencyProfile;
 //! use std::time::Duration;
+//!
+//! use ratatui_testlib::timing::LatencyProfile;
 //!
 //! let mut profile = LatencyProfile::new();
 //!
@@ -60,8 +64,9 @@
 //! # Example: Assertion Helpers
 //!
 //! ```rust,no_run
-//! use ratatui_testlib::timing::TimingRecorder;
 //! use std::time::Duration;
+//!
+//! use ratatui_testlib::timing::TimingRecorder;
 //!
 //! # fn test() -> ratatui_testlib::Result<()> {
 //! let mut recorder = TimingRecorder::new();
@@ -100,8 +105,9 @@ use crate::error::{Result, TermTestError};
 /// # Example
 ///
 /// ```rust
-/// use ratatui_testlib::timing::TimingRecorder;
 /// use std::time::Duration;
+///
+/// use ratatui_testlib::timing::TimingRecorder;
 ///
 /// let mut recorder = TimingRecorder::new();
 ///
@@ -172,7 +178,10 @@ impl TimingRecorder {
             self.event_order.push(name.clone());
         }
 
-        self.events.entry(name).or_insert_with(Vec::new).push(elapsed);
+        self.events
+            .entry(name)
+            .or_insert_with(Vec::new)
+            .push(elapsed);
     }
 
     /// Measures the time between two recorded events.
@@ -191,8 +200,9 @@ impl TimingRecorder {
     /// # Example
     ///
     /// ```rust
-    /// use ratatui_testlib::timing::TimingRecorder;
     /// use std::time::Duration;
+    ///
+    /// use ratatui_testlib::timing::TimingRecorder;
     ///
     /// let mut recorder = TimingRecorder::new();
     /// recorder.record_event("input");
@@ -221,9 +231,13 @@ impl TimingRecorder {
     ///
     /// # Returns
     ///
-    /// A slice of all recorded timestamps for this event, or an empty slice if the event doesn't exist.
+    /// A slice of all recorded timestamps for this event, or an empty slice if the event doesn't
+    /// exist.
     pub fn get_event_times(&self, event_name: &str) -> &[Duration] {
-        self.events.get(event_name).map(|v| v.as_slice()).unwrap_or(&[])
+        self.events
+            .get(event_name)
+            .map(|v| v.as_slice())
+            .unwrap_or(&[])
     }
 
     /// Calculates statistics for latency between two events across multiple samples.
@@ -285,8 +299,9 @@ impl TimingRecorder {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use ratatui_testlib::timing::TimingRecorder;
     /// use std::time::Duration;
+    ///
+    /// use ratatui_testlib::timing::TimingRecorder;
     ///
     /// # fn test() -> ratatui_testlib::Result<()> {
     /// let mut recorder = TimingRecorder::new();
@@ -305,12 +320,14 @@ impl TimingRecorder {
         end_event: &str,
         budget: Duration,
     ) -> Result<()> {
-        let latency = self.measure_latency(start_event, end_event).ok_or_else(|| {
-            TermTestError::Timing(format!(
-                "Cannot measure latency: missing event '{}' or '{}'",
-                start_event, end_event
-            ))
-        })?;
+        let latency = self
+            .measure_latency(start_event, end_event)
+            .ok_or_else(|| {
+                TermTestError::Timing(format!(
+                    "Cannot measure latency: missing event '{}' or '{}'",
+                    start_event, end_event
+                ))
+            })?;
 
         if latency > budget {
             return Err(TermTestError::Timing(format!(
@@ -355,8 +372,9 @@ impl Default for TimingRecorder {
 /// # Example
 ///
 /// ```rust
-/// use ratatui_testlib::timing::LatencyStats;
 /// use std::time::Duration;
+///
+/// use ratatui_testlib::timing::LatencyStats;
 ///
 /// let samples = vec![
 ///     Duration::from_millis(10),
@@ -501,8 +519,9 @@ fn percentile(sorted_data: &[Duration], percentile: f64) -> Duration {
 /// # Example
 ///
 /// ```rust
-/// use ratatui_testlib::timing::LatencyProfile;
 /// use std::time::Duration;
+///
+/// use ratatui_testlib::timing::LatencyProfile;
 ///
 /// let mut profile = LatencyProfile::new();
 ///
@@ -545,7 +564,12 @@ pub struct LatencyProfile {
 impl LatencyProfile {
     /// Creates a new latency profile with no recorded timestamps.
     pub fn new() -> Self {
-        Self { input_timestamp: None, render_start: None, render_end: None, frame_ready: None }
+        Self {
+            input_timestamp: None,
+            render_start: None,
+            render_end: None,
+            frame_ready: None,
+        }
     }
 
     /// Resets all timestamps.
@@ -750,8 +774,9 @@ pub trait TimingHooks {
 /// # Example
 ///
 /// ```rust
-/// use ratatui_testlib::timing::fps_to_frame_budget;
 /// use std::time::Duration;
+///
+/// use ratatui_testlib::timing::fps_to_frame_budget;
 ///
 /// // 60 FPS = 16.67ms per frame
 /// let budget = fps_to_frame_budget(60.0);
@@ -764,8 +789,9 @@ pub fn fps_to_frame_budget(fps_target: f64) -> Duration {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::thread;
+
+    use super::*;
 
     #[test]
     fn test_timing_recorder_basic() {

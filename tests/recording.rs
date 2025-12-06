@@ -1,7 +1,8 @@
 //! Tests for recording and debugging features in TuiTestHarness.
 
-use ratatui_testlib::{Result, TuiTestHarness};
 use std::fs;
+
+use ratatui_testlib::{Result, TuiTestHarness};
 use tempfile::TempDir;
 
 #[test]

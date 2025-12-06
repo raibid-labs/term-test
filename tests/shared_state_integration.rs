@@ -2,12 +2,13 @@
 
 #![cfg(all(feature = "bevy", feature = "shared-state"))]
 
-use ratatui_testlib::bevy::{BevyTuiTestHarness, HybridBevyHarness};
-use ratatui_testlib::shared_state::{MemoryMappedState, SharedStateAccess};
+use std::{collections::HashMap, fs::File, io::Write};
+
+use ratatui_testlib::{
+    bevy::{BevyTuiTestHarness, HybridBevyHarness},
+    shared_state::{MemoryMappedState, SharedStateAccess},
+};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::fs::File;
-use std::io::Write;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 struct TestState {

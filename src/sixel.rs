@@ -75,8 +75,10 @@
 //! # }
 //! ```
 
-use crate::error::{Result, TermTestError};
-use crate::graphics::{GraphicsCapture as UnifiedGraphicsCapture, GraphicsProtocol, GraphicsRegion};
+use crate::{
+    error::{Result, TermTestError},
+    graphics::{GraphicsCapture as UnifiedGraphicsCapture, GraphicsProtocol, GraphicsRegion},
+};
 
 /// Represents a captured Sixel sequence with position information.
 ///
@@ -289,11 +291,7 @@ impl SixelCapture {
             .by_protocol(GraphicsProtocol::Sixel)
             .iter()
             .map(|region: &&GraphicsRegion| {
-                SixelSequence::new(
-                    region.raw_data.clone(),
-                    region.position,
-                    region.bounds,
-                )
+                SixelSequence::new(region.raw_data.clone(), region.position, region.bounds)
             })
             .collect();
 

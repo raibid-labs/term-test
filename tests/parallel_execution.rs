@@ -34,7 +34,9 @@ fn test_parallel_harness_creation() -> Result<()> {
         .collect();
 
     for (i, handle) in handles.into_iter().enumerate() {
-        handle.join().unwrap_or_else(|_| panic!("Thread {} panicked", i))?;
+        handle
+            .join()
+            .unwrap_or_else(|_| panic!("Thread {} panicked", i))?;
     }
 
     Ok(())
@@ -308,10 +310,7 @@ fn test_context_metadata() {
     context.set_metadata("test_name", "parallel_test");
     context.set_metadata("iteration", "1");
 
-    assert_eq!(
-        context.get_metadata("test_name"),
-        Some("parallel_test".to_string())
-    );
+    assert_eq!(context.get_metadata("test_name"), Some("parallel_test".to_string()));
     assert_eq!(context.get_metadata("iteration"), Some("1".to_string()));
 
     context.remove_metadata("iteration");
@@ -377,13 +376,11 @@ fn test_parallel_harness_builder() -> Result<()> {
 /// Stress test: Many parallel operations.
 #[test]
 fn test_parallel_stress() -> Result<()> {
-    let pool = Arc::new(
-        TerminalPool::new(
-            PoolConfig::default()
-                .with_max_terminals(8)
-                .with_acquire_timeout(Duration::from_secs(30)),
-        )?
-    );
+    let pool = Arc::new(TerminalPool::new(
+        PoolConfig::default()
+            .with_max_terminals(8)
+            .with_acquire_timeout(Duration::from_secs(30)),
+    )?);
 
     let context = Arc::new(TestContext::new());
     let success_count = Arc::new(AtomicUsize::new(0));
@@ -444,10 +441,7 @@ fn test_different_terminal_sizes() -> Result<()> {
             thread::spawn(move || -> Result<()> {
                 let terminal = pool.acquire(width, height)?;
                 assert_eq!(terminal.size(), (width, height));
-                println!(
-                    "Thread {} acquired terminal with size {}x{}",
-                    i, width, height
-                );
+                println!("Thread {} acquired terminal with size {}x{}", i, width, height);
                 thread::sleep(Duration::from_millis(20));
                 pool.release(terminal)?;
                 Ok(())

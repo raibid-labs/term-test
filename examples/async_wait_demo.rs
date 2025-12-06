@@ -149,42 +149,40 @@ async fn main() -> ratatui_testlib::Result<()> {
         println!();
     }
 
-    /*
     // Example 6: Sequential async operations
-    println!("6. Sequential async operations...");
-    {
-        let mut harness = AsyncTuiTestHarness::new(80, 24).await?;
-
-        #[cfg(unix)]
-        {
-            let mut cmd = CommandBuilder::new("sh");
-            cmd.arg("-c");
-            cmd.arg("echo 'Step 1' && sleep 1.0 && echo 'Step 2'");
-            harness.spawn(cmd).await?;
-        }
-
-        #[cfg(windows)]
-        {
-            let mut cmd = CommandBuilder::new("cmd");
-            cmd.arg("/C");
-            cmd.arg("echo Step 1 && timeout /t 0 /nobreak > nul && echo Step 2");
-            harness.spawn(cmd).await?;
-        }
-
-        // Wait for each step in sequence
-        harness.wait_for_text("Step 1").await?;
-        println!("   ✓ Completed Step 1");
-
-        match harness.wait_for_text("Step 2").await {
-            Ok(_) => println!("   ✓ Completed Step 2\n"),
-            Err(e) => {
-                println!("   ✗ Failed to find Step 2: {}", e);
-                println!("     Screen content:\n{}", harness.screen_contents().await);
-                return Err(e);
-            }
-        }
-    }
-    */
+    // println!("6. Sequential async operations...");
+    // {
+    // let mut harness = AsyncTuiTestHarness::new(80, 24).await?;
+    //
+    // #[cfg(unix)]
+    // {
+    // let mut cmd = CommandBuilder::new("sh");
+    // cmd.arg("-c");
+    // cmd.arg("echo 'Step 1' && sleep 1.0 && echo 'Step 2'");
+    // harness.spawn(cmd).await?;
+    // }
+    //
+    // #[cfg(windows)]
+    // {
+    // let mut cmd = CommandBuilder::new("cmd");
+    // cmd.arg("/C");
+    // cmd.arg("echo Step 1 && timeout /t 0 /nobreak > nul && echo Step 2");
+    // harness.spawn(cmd).await?;
+    // }
+    //
+    // Wait for each step in sequence
+    // harness.wait_for_text("Step 1").await?;
+    // println!("   ✓ Completed Step 1");
+    //
+    // match harness.wait_for_text("Step 2").await {
+    // Ok(_) => println!("   ✓ Completed Step 2\n"),
+    // Err(e) => {
+    // println!("   ✗ Failed to find Step 2: {}", e);
+    // println!("     Screen content:\n{}", harness.screen_contents().await);
+    // return Err(e);
+    // }
+    // }
+    // }
 
     // Example 7: Using async in concurrent tasks
     println!("7. Concurrent async tasks...");
@@ -210,11 +208,8 @@ async fn main() -> ratatui_testlib::Result<()> {
         };
 
         // Run both tasks concurrently with a timeout
-        let result = timeout(
-            Duration::from_secs(5),
-            async { tokio::try_join!(task1, task2) },
-        )
-        .await;
+        let result =
+            timeout(Duration::from_secs(5), async { tokio::try_join!(task1, task2) }).await;
 
         match result {
             Ok(Ok(_)) => println!("   ✓ Both tasks completed successfully"),

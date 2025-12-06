@@ -6,16 +6,18 @@
 //! # Key Features
 //!
 //! - **Async/Await API**: Native async methods for spawning, sending input, and waiting.
-//! - **Non-blocking I/O**: Uses `spawn_blocking` to handle PTY operations without blocking the runtime.
-//! - **Advanced Wait Conditions**: Support for custom timeouts, polling intervals, and multiple conditions.
+//! - **Non-blocking I/O**: Uses `spawn_blocking` to handle PTY operations without blocking the
+//!   runtime.
+//! - **Advanced Wait Conditions**: Support for custom timeouts, polling intervals, and multiple
+//!   conditions.
 //!
 //! # Example
 //!
 //! ```rust,no_run
 //! # #[cfg(feature = "async-tokio")]
 //! # async fn test() -> ratatui_testlib::Result<()> {
-//! use ratatui_testlib::AsyncTuiTestHarness;
 //! use portable_pty::CommandBuilder;
+//! use ratatui_testlib::AsyncTuiTestHarness;
 //!
 //! let mut harness = AsyncTuiTestHarness::new(80, 24).await?;
 //! let mut cmd = CommandBuilder::new("echo");
@@ -37,10 +39,10 @@ use tokio::task::spawn_blocking;
 
 use crate::{
     error::{Result, TermTestError},
-    events::{KeyCode, Modifiers, MouseEvent, ScrollDirection, MouseButton},
+    events::{KeyCode, Modifiers, MouseButton, MouseEvent, ScrollDirection},
+    navigation::{HintLabel, NavigationTestExt},
     screen::ScreenState,
     TuiTestHarness,
-    navigation::{NavigationTestExt, HintLabel},
 };
 
 /// Result of a wait operation.
@@ -77,15 +79,15 @@ impl AsyncTuiTestHarness {
     /// * `height` - Terminal height
     pub async fn new(width: u16, height: u16) -> Result<Self> {
         let harness = spawn_blocking(move || TuiTestHarness::new(width, height)).await??;
-        Ok(Self {
-            inner: Arc::new(Mutex::new(harness)),
-        })
+        Ok(Self { inner: Arc::new(Mutex::new(harness)) })
     }
 
     /// Get visible hints asynchronously.
     pub async fn visible_hints(&self) -> Vec<HintLabel> {
         let inner = self.inner.clone();
-        spawn_blocking(move || inner.lock().unwrap().visible_hints()).await.unwrap()
+        spawn_blocking(move || inner.lock().unwrap().visible_hints())
+            .await
+            .unwrap()
     }
 
     /// Spawns a process in the PTY.
@@ -121,9 +123,19 @@ impl AsyncTuiTestHarness {
     }
 
     /// Sends a key with modifiers.
-    pub async fn send_key_with_modifiers(&mut self, key: KeyCode, modifiers: Modifiers) -> Result<()> {
+    pub async fn send_key_with_modifiers(
+        &mut self,
+        key: KeyCode,
+        modifiers: Modifiers,
+    ) -> Result<()> {
         let inner = self.inner.clone();
-        spawn_blocking(move || inner.lock().unwrap().send_key_with_modifiers(key, modifiers)).await??;
+        spawn_blocking(move || {
+            inner
+                .lock()
+                .unwrap()
+                .send_key_with_modifiers(key, modifiers)
+        })
+        .await??;
         Ok(())
     }
 
@@ -151,7 +163,13 @@ impl AsyncTuiTestHarness {
         button: MouseButton,
     ) -> Result<()> {
         let inner = self.inner.clone();
-        spawn_blocking(move || inner.lock().unwrap().mouse_drag(start_x, start_y, end_x, end_y, button)).await??;
+        spawn_blocking(move || {
+            inner
+                .lock()
+                .unwrap()
+                .mouse_drag(start_x, start_y, end_x, end_y, button)
+        })
+        .await??;
         Ok(())
     }
 
@@ -190,7 +208,9 @@ impl AsyncTuiTestHarness {
     /// Returns the current screen contents.
     pub async fn screen_contents(&self) -> String {
         let inner = self.inner.clone();
-        spawn_blocking(move || inner.lock().unwrap().screen_contents()).await.unwrap()
+        spawn_blocking(move || inner.lock().unwrap().screen_contents())
+            .await
+            .unwrap()
     }
 
     /// Resizes the terminal.
@@ -249,11 +269,12 @@ where
             let is_met = spawn_blocking(move || {
                 let mut h = harness.lock().unwrap();
                 match h.update_state() {
-                    Ok(_) | Err(TermTestError::ProcessExited) => {},
+                    Ok(_) | Err(TermTestError::ProcessExited) => {}
                     Err(e) => return Err(e),
                 }
                 Ok(cond(h.state()))
-            }).await??;
+            })
+            .await??;
 
             if is_met {
                 return Ok(());
@@ -323,7 +344,7 @@ impl AsyncWaitAnyBuilder {
                 let mut h = harness.lock().unwrap();
                 // Update state
                 match h.update_state() {
-                    Ok(_) | Err(TermTestError::ProcessExited) => {},
+                    Ok(_) | Err(TermTestError::ProcessExited) => {}
                     Err(e) => return Err(e),
                 }
 
@@ -334,7 +355,8 @@ impl AsyncWaitAnyBuilder {
                     }
                 }
                 Ok(None)
-            }).await??;
+            })
+            .await??;
 
             if let Some(idx) = matched_index {
                 return Ok(WaitResult::Condition(idx));

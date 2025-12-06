@@ -10,10 +10,7 @@
 //! cargo run --example shared_state_test --features bevy,shared-state
 //! ```
 
-use std::collections::HashMap;
-use std::fs::File;
-use std::io::Write;
-use std::time::Duration;
+use std::{collections::HashMap, fs::File, io::Write, time::Duration};
 
 use ratatui_testlib::shared_state::{
     assert_grid_cell, assert_metric, snapshot_grid, MemoryMappedState, SharedStateAccess,
@@ -34,10 +31,7 @@ struct TuiState {
 impl TuiState {
     fn new() -> Self {
         Self {
-            grid: vec![
-                vec!['H', 'e', 'l', 'l', 'o'],
-                vec!['W', 'o', 'r', 'l', 'd'],
-            ],
+            grid: vec![vec!['H', 'e', 'l', 'l', 'o'], vec!['W', 'o', 'r', 'l', 'd']],
             metrics: {
                 let mut m = HashMap::new();
                 m.insert("fps".to_string(), 60.0);

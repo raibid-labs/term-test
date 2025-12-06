@@ -93,7 +93,6 @@ pub mod hybrid;
 
 // Re-exports
 pub use bench::{BenchmarkResults, BenchmarkableHarness, ProfileResults};
-pub use hybrid::{HybridBevyHarness, HybridBevyHarnessBuilder};
 // Bevy ECS imports
 use bevy::app::App;
 use bevy::{
@@ -102,6 +101,7 @@ use bevy::{
     MinimalPlugins,
 };
 pub use headless::HeadlessBevyRunner;
+pub use hybrid::{HybridBevyHarness, HybridBevyHarnessBuilder};
 // Snapshot testing imports
 #[cfg(feature = "snapshot-insta")]
 use serde::{Deserialize, Serialize};
@@ -991,8 +991,7 @@ impl BevyTuiTestHarness {
     /// use ratatui_testlib::BevyTuiTestHarness;
     ///
     /// # fn test() -> ratatui_testlib::Result<()> {
-    /// let mut harness = BevyTuiTestHarness::new()?
-    ///     .with_shared_state("/tmp/tui_state.mmap")?;
+    /// let mut harness = BevyTuiTestHarness::new()?.with_shared_state("/tmp/tui_state.mmap")?;
     ///
     /// // Now you can access shared state in tests
     /// harness.update_n(10)?;
@@ -1021,8 +1020,10 @@ impl BevyTuiTestHarness {
     /// ```rust,no_run
     /// # #[cfg(all(feature = "bevy", feature = "shared-state"))]
     /// # {
-    /// use ratatui_testlib::BevyTuiTestHarness;
-    /// use ratatui_testlib::shared_state::{MemoryMappedState, SharedStateAccess};
+    /// use ratatui_testlib::{
+    ///     shared_state::{MemoryMappedState, SharedStateAccess},
+    ///     BevyTuiTestHarness,
+    /// };
     /// use serde::{Deserialize, Serialize};
     ///
     /// #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1031,8 +1032,7 @@ impl BevyTuiTestHarness {
     /// }
     ///
     /// # fn test() -> ratatui_testlib::Result<()> {
-    /// let harness = BevyTuiTestHarness::new()?
-    ///     .with_shared_state("/tmp/game.mmap")?;
+    /// let harness = BevyTuiTestHarness::new()?.with_shared_state("/tmp/game.mmap")?;
     ///
     /// if let Some(path) = harness.shared_state_path() {
     ///     let state = MemoryMappedState::<GameState>::open(path)?;

@@ -24,7 +24,7 @@ fn test_mouse_click() -> Result<()> {
 
     let _content = harness.screen_contents();
     // Verify the escape sequences appear in the output
-    
+
     Ok(())
 }
 
@@ -38,6 +38,6 @@ fn test_mouse_methods_execute() -> Result<()> {
     harness.mouse_click(10, 10, MouseButton::Left)?;
     harness.mouse_drag(10, 10, 20, 20, MouseButton::Left)?;
     harness.mouse_scroll(15, 15, ScrollDirection::Up)?;
-    
+
     Ok(())
 }
